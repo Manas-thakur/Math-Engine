@@ -154,9 +154,9 @@ int main(int argc, char* argv[]) {
     };
     
     // Console output
-    std::cout << "\n╔═══════════════════════════════════╗\n";
-    std::cout << "║  Mathematics Engine - Calculus   ║\n";
-    std::cout << "╚═══════════════════════════════════╝\n\n";
+    std::cout << "\n+===================================+\n";
+    std::cout << "|  Mathematics Engine - Calculus   |\n";
+    std::cout << "+===================================+\n\n";
     
     // Main loop
     bool running = true;
@@ -341,18 +341,18 @@ int main(int argc, char* argv[]) {
         
         // === MENU MODE ===
         if (currentMode == Mode::MENU) {
-            textRenderer.renderText("╔═══════════════════════════════════════════════╗", leftMargin, y, cyan);
+            textRenderer.renderText("+===============================================+", leftMargin, y, cyan);
             y += lineHeight;
-            textRenderer.renderText("║     MATHEMATICS ENGINE - Calculus Toolkit    ║", leftMargin, y, cyan);
+            textRenderer.renderText("|     MATHEMATICS ENGINE - Calculus Toolkit    |", leftMargin, y, cyan);
             y += lineHeight;
-            textRenderer.renderText("╚═══════════════════════════════════════════════╝", leftMargin, y, cyan);
+            textRenderer.renderText("+===============================================+", leftMargin, y, cyan);
             y += lineHeight + 20;
             
             textRenderer.renderText("Select Operation:", leftMargin, y, yellow);
             y += lineHeight + 10;
             
             // Menu option 1
-            std::string opt1 = (menuSelection == 0) ? "► 1. Differentiation (d/dx)" : "  1. Differentiation (d/dx)";
+            std::string opt1 = (menuSelection == 0) ? "> 1. Differentiation (d/dx)" : "  1. Differentiation (d/dx)";
             SDL_Color color1 = (menuSelection == 0) ? green : white;
             textRenderer.renderText(opt1, leftMargin + 40, y, color1);
             y += lineHeight;
@@ -360,7 +360,7 @@ int main(int argc, char* argv[]) {
             y += lineHeight + 10;
             
             // Menu option 2
-            std::string opt2 = (menuSelection == 1) ? "► 2. Indefinite Integration (∫ f(x) dx)" : "  2. Indefinite Integration (∫ f(x) dx)";
+            std::string opt2 = (menuSelection == 1) ? "> 2. Indefinite Integration (INT f(x) dx)" : "  2. Indefinite Integration (INT f(x) dx)";
             SDL_Color color2 = (menuSelection == 1) ? green : white;
             textRenderer.renderText(opt2, leftMargin + 40, y, color2);
             y += lineHeight;
@@ -368,7 +368,7 @@ int main(int argc, char* argv[]) {
             y += lineHeight + 10;
             
             // Menu option 3
-            std::string opt3 = (menuSelection == 2) ? "► 3. Definite Integration (∫[a,b] f(x) dx)" : "  3. Definite Integration (∫[a,b] f(x) dx)";
+            std::string opt3 = (menuSelection == 2) ? "> 3. Definite Integration (INT[a,b] f(x) dx)" : "  3. Definite Integration (INT[a,b] f(x) dx)";
             SDL_Color color3 = (menuSelection == 2) ? green : white;
             textRenderer.renderText(opt3, leftMargin + 40, y, color3);
             y += lineHeight;
@@ -461,7 +461,7 @@ int main(int argc, char* argv[]) {
         }
         // === INDEFINITE INTEGRATION MODE ===
         else if (currentMode == Mode::INDEFINITE_INTEGRATION) {
-            textRenderer.renderText("Indefinite Integration Mode - ∫ f(x) dx", leftMargin, y, cyan);
+            textRenderer.renderText("Indefinite Integration Mode - INT f(x) dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
             if (inputMode) {
@@ -531,7 +531,7 @@ int main(int argc, char* argv[]) {
                 
                 textRenderer.renderText("Graph:", plotX, plotY - 25, yellow);
                 textRenderer.renderText("f(x) - Blue", plotX, plotY + 310, cyan);
-                textRenderer.renderText("F(x) = ∫f(x)dx - Green", plotX + 150, plotY + 310, {100, 255, 100, 255});
+                textRenderer.renderText("F(x) = INT f(x)dx - Green", plotX + 150, plotY + 310, {100, 255, 100, 255});
                 
                 textRenderer.renderText("ENTER: custom | SPACE: next example | ESC: menu", 20, 690, gray);
             } else if (!errorMsg.empty()) {
@@ -540,18 +540,18 @@ int main(int argc, char* argv[]) {
         }
         // === DEFINITE INTEGRATION MODE ===
         else if (currentMode == Mode::DEFINITE_INTEGRATION) {
-            textRenderer.renderText("Definite Integration Mode - ∫[a,b] f(x) dx", leftMargin, y, cyan);
+            textRenderer.renderText("Definite Integration Mode - INT[a,b] f(x) dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
             if (boundsInputMode) {
                 textRenderer.renderText("Set Integration Bounds:", leftMargin, y, yellow);
                 y += lineHeight;
                 
-                std::string lowerPrompt = (editingLowerBound ? "► " : "  ") + std::string("Lower bound (a): ") + lowerBoundStr + (editingLowerBound ? "_" : "");
+                std::string lowerPrompt = (editingLowerBound ? "> " : "  ") + std::string("Lower bound (a): ") + lowerBoundStr + (editingLowerBound ? "_" : "");
                 textRenderer.renderText(lowerPrompt, leftMargin + 20, y, editingLowerBound ? green : white);
                 y += lineHeight;
                 
-                std::string upperPrompt = (!editingLowerBound ? "► " : "  ") + std::string("Upper bound (b): ") + upperBoundStr + (!editingLowerBound ? "_" : "");
+                std::string upperPrompt = (!editingLowerBound ? "> " : "  ") + std::string("Upper bound (b): ") + upperBoundStr + (!editingLowerBound ? "_" : "");
                 textRenderer.renderText(upperPrompt, leftMargin + 20, y, !editingLowerBound ? green : white);
                 y += lineHeight + 10;
                 
@@ -588,7 +588,7 @@ int main(int argc, char* argv[]) {
                 y += 10;
                 textRenderer.renderText("--- Final Result ---", leftMargin, y, yellow);
                 y += lineHeight;
-                std::string finalResult = "∫[" + lowerBoundStr + "," + upperBoundStr + "] f(x) dx = " + std::to_string(definiteResult);
+                std::string finalResult = "INT[" + lowerBoundStr + "," + upperBoundStr + "] f(x) dx = " + std::to_string(definiteResult);
                 textRenderer.renderText(finalResult, leftMargin, y, green);
                 y += lineHeight + 20;
                 

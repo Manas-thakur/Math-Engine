@@ -36,16 +36,22 @@ TextTexture TextRenderer::createTextTexture(const std::string& text, SDL_Color c
         return result;
     }
     
+    // Convert surface to RGBA format for consistent OpenGL upload
+    SDL_Surface* formattedSurface = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(surface);
+    
+    if (!formattedSurface) {
+        std::cerr << "SDL_ConvertSurfaceFormat failed: " << SDL_GetError() << std::endl;
+        return result;
+    }
+    
     // Create OpenGL texture
     GLuint texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     
-    // Determine format
-    GLenum format = (surface->format->BytesPerPixel == 4) ? GL_RGBA : GL_RGB;
-    
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0,
-                 GL_BGRA, GL_UNSIGNED_BYTE, surface->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, formattedSurface->w, formattedSurface->h, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, formattedSurface->pixels);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -53,10 +59,10 @@ TextTexture TextRenderer::createTextTexture(const std::string& text, SDL_Color c
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     
     result.textureID = texture;
-    result.width = surface->w;
-    result.height = surface->h;
+    result.width = formattedSurface->w;
+    result.height = formattedSurface->h;
     
-    SDL_FreeSurface(surface);
+    SDL_FreeSurface(formattedSurface);
     
     return result;
 }
