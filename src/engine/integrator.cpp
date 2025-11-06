@@ -40,8 +40,8 @@ std::unique_ptr<ASTNode> Integrator::integrateNode(const ASTNode* node) {
         
         case NodeType::VARIABLE: {
             IntegrationStep step;
-            step.description = "Power Rule: ∫ x dx = x²/2";
-            step.expression = "∫ x dx = x²/2";
+            step.description = "Power Rule: ∫ x dx = x^2/2";
+            step.expression = "∫ x dx = x^2/2";
             steps.push_back(step);
             
             // x^2 / 2
@@ -148,8 +148,8 @@ std::unique_ptr<ASTNode> Integrator::integrateNode(const ASTNode* node) {
                         
                         if (n == -1) {
                             IntegrationStep step;
-                            step.description = "Special case: ∫ x⁻¹ dx = ln|x|";
-                            step.expression = "∫ x⁻¹ dx = ln|x|";
+                            step.description = "Special case: ∫ x^(-1) dx = ln|x|";
+                            step.expression = "∫ x^(-1) dx = ln|x|";
                             steps.push_back(step);
                             
                             return std::make_unique<UnaryFuncNode>(
@@ -159,7 +159,7 @@ std::unique_ptr<ASTNode> Integrator::integrateNode(const ASTNode* node) {
                         }
                         else {
                             IntegrationStep step;
-                            step.description = "Power Rule: ∫ xⁿ dx = xⁿ⁺¹/(n+1)";
+                            step.description = "Power Rule: ∫ x^n dx = x^(n+1)/(n+1)";
                             step.expression = "∫ x^" + std::to_string((int)n) + " dx = x^" + 
                                             std::to_string((int)(n+1)) + "/" + std::to_string((int)(n+1));
                             steps.push_back(step);

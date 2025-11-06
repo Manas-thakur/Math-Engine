@@ -64,8 +64,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case BinaryOp::MUL: {
                     DifferentiationStep step;
-                    step.description = "Product Rule: ∂/∂x(f ⋅ g) = f' ⋅ g + f ⋅ g'";
-                    step.expression = "∂/∂x(" + binOp->left->toString() + " ⋅ " + binOp->right->toString() + ")";
+                    step.description = "Product Rule: ∂/∂x(f * g) = f' * g + f * g'";
+                    step.expression = "∂/∂x(" + binOp->left->toString() + " * " + binOp->right->toString() + ")";
                     steps.push_back(step);
                     
                     auto leftDeriv = differentiateNode(binOp->left.get());
@@ -90,7 +90,7 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case BinaryOp::DIV: {
                     DifferentiationStep step;
-                    step.description = "Quotient Rule: ∂/∂x(f/g) = (f' ⋅ g - f ⋅ g') / g²";
+                    step.description = "Quotient Rule: ∂/∂x(f/g) = (f' * g - f * g') / g^2";
                     step.expression = "∂/∂x(" + binOp->left->toString() + " / " + binOp->right->toString() + ")";
                     steps.push_back(step);
                     
@@ -134,7 +134,7 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                         auto numNode = static_cast<const NumberNode*>(binOp->right.get());
                         
                         DifferentiationStep step;
-                        step.description = "Power Rule: ∂/∂x(x^n) = n ⋅ x^(n-1)";
+                        step.description = "Power Rule: ∂/∂x(x^n) = n * x^(n-1)";
                         step.expression = "∂/∂x(" + binOp->left->toString() + "^" + std::to_string((int)numNode->value) + ")";
                         steps.push_back(step);
                         
@@ -175,8 +175,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
             switch (funcNode->func) {
                 case UnaryFunc::SIN: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(sin(u)) = cos(u) ⋅ u'";
-                    step.expression = "∂/∂x(sin(" + funcNode->arg->toString() + ")) = cos(" + funcNode->arg->toString() + ") ⋅ ∂/∂x(" + funcNode->arg->toString() + ")";
+                    step.description = "Chain Rule: ∂/∂x(sin(u)) = cos(u) * u'";
+                    step.expression = "∂/∂x(sin(" + funcNode->arg->toString() + ")) = cos(" + funcNode->arg->toString() + ") * ∂/∂x(" + funcNode->arg->toString() + ")";
                     steps.push_back(step);
                     
                     auto cosNode = std::make_unique<UnaryFuncNode>(UnaryFunc::COS, funcNode->arg->clone());
@@ -185,8 +185,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case UnaryFunc::COS: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(cos(u)) = -sin(u) ⋅ u'";
-                    step.expression = "∂/∂x(cos(" + funcNode->arg->toString() + ")) = -sin(" + funcNode->arg->toString() + ") ⋅ ∂/∂x(" + funcNode->arg->toString() + ")";
+                    step.description = "Chain Rule: ∂/∂x(cos(u)) = -sin(u) * u'";
+                    step.expression = "∂/∂x(cos(" + funcNode->arg->toString() + ")) = -sin(" + funcNode->arg->toString() + ") * ∂/∂x(" + funcNode->arg->toString() + ")";
                     steps.push_back(step);
                     
                     auto sinNode = std::make_unique<UnaryFuncNode>(UnaryFunc::SIN, funcNode->arg->clone());
@@ -197,7 +197,7 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case UnaryFunc::TAN: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(tan(u)) = sec²(u) ⋅ u'";
+                    step.description = "Chain Rule: ∂/∂x(tan(u)) = sec^2(u) * u'";
                     step.expression = "∂/∂x(tan(" + funcNode->arg->toString() + "))";
                     steps.push_back(step);
                     
@@ -210,8 +210,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case UnaryFunc::LN: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(ln(u)) = (1/u) ⋅ u'";
-                    step.expression = "∂/∂x(ln(" + funcNode->arg->toString() + ")) = (1/" + funcNode->arg->toString() + ") ⋅ ∂/∂x(" + funcNode->arg->toString() + ")";
+                    step.description = "Chain Rule: ∂/∂x(ln(u)) = (1/u) * u'";
+                    step.expression = "∂/∂x(ln(" + funcNode->arg->toString() + ")) = (1/" + funcNode->arg->toString() + ") * ∂/∂x(" + funcNode->arg->toString() + ")";
                     steps.push_back(step);
                     
                     auto oneOverU = std::make_unique<BinaryOpNode>(
@@ -224,8 +224,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case UnaryFunc::EXP: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(exp(u)) = exp(u) ⋅ u'";
-                    step.expression = "∂/∂x(exp(" + funcNode->arg->toString() + ")) = exp(" + funcNode->arg->toString() + ") ⋅ ∂/∂x(" + funcNode->arg->toString() + ")";
+                    step.description = "Chain Rule: ∂/∂x(exp(u)) = exp(u) * u'";
+                    step.expression = "∂/∂x(exp(" + funcNode->arg->toString() + ")) = exp(" + funcNode->arg->toString() + ") * ∂/∂x(" + funcNode->arg->toString() + ")";
                     steps.push_back(step);
                     
                     auto expNode = std::make_unique<UnaryFuncNode>(UnaryFunc::EXP, funcNode->arg->clone());
@@ -234,8 +234,8 @@ std::unique_ptr<ASTNode> Differentiator::differentiateNode(const ASTNode* node) 
                 
                 case UnaryFunc::SQRT: {
                     DifferentiationStep step;
-                    step.description = "Chain Rule: ∂/∂x(√u) = (1/(2√u)) ⋅ u'";
-                    step.expression = "∂/∂x(√" + funcNode->arg->toString() + ")";
+                    step.description = "Chain Rule: ∂/∂x(sqrt(u)) = (1/(2*sqrt(u))) * u'";
+                    step.expression = "∂/∂x(sqrt(" + funcNode->arg->toString() + "))";
                     steps.push_back(step);
                     
                     auto sqrtNode = std::make_unique<UnaryFuncNode>(UnaryFunc::SQRT, funcNode->arg->clone());
