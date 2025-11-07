@@ -9,6 +9,8 @@
 #include "engine/limit_calculator.h"
 #include "engine/matrix_operations.h"
 #include "engine/latex_exporter.h"
+#include "engine/partial_derivative.h"
+#include "engine/multivariate_integrator.h"
 #include "ui/renderer.h"
 #include "ui/text_renderer.h"
 #include "ui/plotter.h"
@@ -19,7 +21,9 @@ enum class Mode {
     INDEFINITE_INTEGRATION,
     DEFINITE_INTEGRATION,
     LIMITS,
-    MATRIX_MULTIPLICATION
+    MATRIX_MULTIPLICATION,
+    PARTIAL_DERIVATIVES,
+    DOUBLE_INTEGRATION
 };
 
 // Default example expressions for differentiation
@@ -60,6 +64,26 @@ const LimitType defaultLimitTypes[] = {
     LimitType::POSITIVE_INFINITY
 };
 
+// Default example expressions for partial derivatives (multivariate functions)
+const char* defaultPartialExpressions[] = {
+    "x^2 + y^2",
+    "x*y",
+    "x^2*y + x*y^2",
+    "sin(x)*cos(y)",
+    "x^3 + 2*x*y + y^2"
+};
+const int numDefaultPartialExpressions = 5;
+
+// Default example expressions for double integration
+const char* defaultDoubleIntegralExpressions[] = {
+    "x*y",
+    "x^2 + y^2",
+    "x + y",
+    "2*x*y",
+    "x*y^2"
+};
+const int numDefaultDoubleIntegralExpressions = 5;
+
 int main(int argc, char* argv[]) {
     // Initialize renderer
     Renderer renderer;
@@ -81,7 +105,6 @@ int main(int argc, char* argv[]) {
     SDL_Color yellow = {255, 255, 100, 255};
     SDL_Color cyan = {100, 200, 255, 255};
     SDL_Color orange = {255, 180, 100, 255};
-    SDL_Color purple = {200, 150, 255, 255};
     SDL_Color gray = {150, 150, 150, 255};
     
     // Application state
@@ -137,6 +160,24 @@ int main(int argc, char* argv[]) {
     int currentMatrixCol = 0;
     bool editingMatrixA = true; // true=A, false=B
     std::string matrixValueStr = "0";
+    
+    // Partial derivatives mode variables
+    int currentPartialExpressionIndex = 0;
+    std::vector<PartialDerivativeStep> partialStepsX;
+    std::vector<PartialDerivativeStep> partialStepsY;
+    std::unique_ptr<ASTNode> partialResultX;
+    std::unique_ptr<ASTNode> partialResultY;
+    
+    // Double integration mode variables
+    int currentDoubleIntegralExpressionIndex = 0;
+    std::vector<MultivariateIntegrationStep> doubleIntegSteps;
+    std::string xLowerBoundStr = "0";
+    std::string xUpperBoundStr = "1";
+    std::string yLowerBoundStr = "0";
+    std::string yUpperBoundStr = "1";
+    bool doubleIntegBoundsInputMode = false;
+    int doubleIntegBoundField = 0; // 0=x_lower, 1=x_upper, 2=y_lower, 3=y_upper
+    double doubleIntegralResult = 0.0;
     
     // Input mode variables
     bool inputMode = false;
@@ -250,6 +291,53 @@ int main(int argc, char* argv[]) {
             }
             matrixResult = new Matrix(matOps.multiply(*matrixA, *matrixB));
             matrixSteps = matOps.getSteps();
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process partial derivatives
+    auto processPartialDerivatives = [&]() {
+        try {
+            ast = parser.parse(currentExpression);
+            
+            // Compute partial derivative with respect to x
+            PartialDerivative partialX;
+            partialResultX = partialX.differentiate(ast.get(), DiffVariable::X);
+            partialStepsX = partialX.getSteps();
+            partialResultX = Simplifier::simplify(std::move(partialResultX));
+            
+            // Compute partial derivative with respect to y
+            PartialDerivative partialY;
+            partialResultY = partialY.differentiate(ast.get(), DiffVariable::Y);
+            partialStepsY = partialY.getSteps();
+            partialResultY = Simplifier::simplify(std::move(partialResultY));
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process double integration
+    auto processDoubleIntegration = [&]() {
+        try {
+            ast = parser.parse(currentExpression);
+            
+            double x_lower = std::stod(xLowerBoundStr);
+            double x_upper = std::stod(xUpperBoundStr);
+            double y_lower = std::stod(yLowerBoundStr);
+            double y_upper = std::stod(yUpperBoundStr);
+            
+            MultivariateIntegrator multiInteg;
+            doubleIntegralResult = multiInteg.doubleIntegrate(ast.get(), x_lower, x_upper, y_lower, y_upper);
+            doubleIntegSteps = multiInteg.getSteps();
             
             parseSuccess = true;
             errorMsg.clear();
@@ -382,6 +470,17 @@ int main(int argc, char* argv[]) {
                 else if (matrixValueInputMode) {
                     matrixValueStr += event.text.text;
                 }
+                else if (doubleIntegBoundsInputMode) {
+                    if (doubleIntegBoundField == 0) {
+                        xLowerBoundStr += event.text.text;
+                    } else if (doubleIntegBoundField == 1) {
+                        xUpperBoundStr += event.text.text;
+                    } else if (doubleIntegBoundField == 2) {
+                        yLowerBoundStr += event.text.text;
+                    } else if (doubleIntegBoundField == 3) {
+                        yUpperBoundStr += event.text.text;
+                    }
+                }
             }
             else if (event.type == SDL_KEYDOWN) {
                 // Menu mode
@@ -430,11 +529,27 @@ int main(int argc, char* argv[]) {
                             SDL_StartTextInput();
                             std::cout << "Switched to MATRIX MULTIPLICATION mode\n";
                             break;
+                        case SDLK_6:
+                            currentMode = Mode::PARTIAL_DERIVATIVES;
+                            currentExpression = defaultPartialExpressions[0];
+                            scrollOffset = 0;
+                            processPartialDerivatives();
+                            std::cout << "Switched to PARTIAL DERIVATIVES mode\n";
+                            break;
+                        case SDLK_7:
+                            currentMode = Mode::DOUBLE_INTEGRATION;
+                            currentExpression = defaultDoubleIntegralExpressions[0];
+                            scrollOffset = 0;
+                            doubleIntegBoundsInputMode = true;
+                            doubleIntegBoundField = 0;
+                            SDL_StartTextInput();
+                            std::cout << "Switched to DOUBLE INTEGRATION mode\n";
+                            break;
                         case SDLK_UP:
                             menuSelection = std::max(0, menuSelection - 1);
                             break;
                         case SDLK_DOWN:
-                            menuSelection = std::min(4, menuSelection + 1);
+                            menuSelection = std::min(6, menuSelection + 1);
                             break;
                         case SDLK_RETURN:
                             if (menuSelection == 0) {
@@ -467,6 +582,18 @@ int main(int argc, char* argv[]) {
                                 matrixDimensionInputMode = true;
                                 matrixInputField = 0;
                                 SDL_StartTextInput();
+                            } else if (menuSelection == 5) {
+                                currentMode = Mode::PARTIAL_DERIVATIVES;
+                                currentExpression = defaultPartialExpressions[0];
+                                scrollOffset = 0;
+                                processPartialDerivatives();
+                            } else if (menuSelection == 6) {
+                                currentMode = Mode::DOUBLE_INTEGRATION;
+                                currentExpression = defaultDoubleIntegralExpressions[0];
+                                scrollOffset = 0;
+                                doubleIntegBoundsInputMode = true;
+                                doubleIntegBoundField = 0;
+                                SDL_StartTextInput();
                             }
                             break;
                     }
@@ -484,6 +611,10 @@ int main(int argc, char* argv[]) {
                                 processIndefiniteIntegration();
                             } else if (currentMode == Mode::DEFINITE_INTEGRATION) {
                                 processDefiniteIntegration();
+                            } else if (currentMode == Mode::PARTIAL_DERIVATIVES) {
+                                processPartialDerivatives();
+                            } else if (currentMode == Mode::DOUBLE_INTEGRATION) {
+                                processDoubleIntegration();
                             }
                         }
                         inputMode = false;
@@ -705,6 +836,32 @@ int main(int argc, char* argv[]) {
                         currentMode = Mode::MENU;
                     }
                 }
+                // Handle double integration bounds input
+                else if (doubleIntegBoundsInputMode && currentMode == Mode::DOUBLE_INTEGRATION) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        doubleIntegBoundsInputMode = false;
+                        SDL_StopTextInput();
+                        processDoubleIntegration();
+                    }
+                    else if (event.key.keysym.sym == SDLK_TAB) {
+                        doubleIntegBoundField = (doubleIntegBoundField + 1) % 4;
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (doubleIntegBoundField == 0 && !xLowerBoundStr.empty()) {
+                            xLowerBoundStr = xLowerBoundStr.substr(0, xLowerBoundStr.length() - 1);
+                        } else if (doubleIntegBoundField == 1 && !xUpperBoundStr.empty()) {
+                            xUpperBoundStr = xUpperBoundStr.substr(0, xUpperBoundStr.length() - 1);
+                        } else if (doubleIntegBoundField == 2 && !yLowerBoundStr.empty()) {
+                            yLowerBoundStr = yLowerBoundStr.substr(0, yLowerBoundStr.length() - 1);
+                        } else if (doubleIntegBoundField == 3 && !yUpperBoundStr.empty()) {
+                            yUpperBoundStr = yUpperBoundStr.substr(0, yUpperBoundStr.length() - 1);
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        doubleIntegBoundsInputMode = false;
+                        SDL_StopTextInput();
+                    }
+                }
                 // Normal calculus mode controls
                 else {
                     switch (event.key.keysym.sym) {
@@ -720,10 +877,14 @@ int main(int argc, char* argv[]) {
                             SDL_StartTextInput();
                             break;
                         case SDLK_b:
-                            // B key for bounds (definite integration only)
+                            // B key for bounds
                             if (currentMode == Mode::DEFINITE_INTEGRATION) {
                                 boundsInputMode = true;
                                 editingLowerBound = true;
+                                SDL_StartTextInput();
+                            } else if (currentMode == Mode::DOUBLE_INTEGRATION) {
+                                doubleIntegBoundsInputMode = true;
+                                doubleIntegBoundField = 0;
                                 SDL_StartTextInput();
                             }
                             break;
@@ -789,6 +950,16 @@ int main(int argc, char* argv[]) {
                                 } else {
                                     processDefiniteIntegration();
                                 }
+                            } else if (currentMode == Mode::PARTIAL_DERIVATIVES) {
+                                currentPartialExpressionIndex = (currentPartialExpressionIndex + 1) % numDefaultPartialExpressions;
+                                currentExpression = defaultPartialExpressions[currentPartialExpressionIndex];
+                                scrollOffset = 0;
+                                processPartialDerivatives();
+                            } else if (currentMode == Mode::DOUBLE_INTEGRATION) {
+                                currentDoubleIntegralExpressionIndex = (currentDoubleIntegralExpressionIndex + 1) % numDefaultDoubleIntegralExpressions;
+                                currentExpression = defaultDoubleIntegralExpressions[currentDoubleIntegralExpressionIndex];
+                                scrollOffset = 0;
+                                processDoubleIntegration();
                             }
                             break;
                         case SDLK_UP:
@@ -859,11 +1030,27 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt5, leftMargin + 40, y, color5);
             y += lineHeight;
             textRenderer.renderText("     Multiply matrices with custom dimensions", leftMargin + 60, y, gray);
+            y += lineHeight + 10;
+            
+            // Menu option 6
+            std::string opt6 = (menuSelection == 5) ? "> 6. Partial Derivatives (∂f/∂x, ∂f/∂y)" : "  6. Partial Derivatives (∂f/∂x, ∂f/∂y)";
+            SDL_Color color6 = (menuSelection == 5) ? green : white;
+            textRenderer.renderText(opt6, leftMargin + 40, y, color6);
+            y += lineHeight;
+            textRenderer.renderText("     Compute partial derivatives for functions of x and y", leftMargin + 60, y, gray);
+            y += lineHeight + 10;
+            
+            // Menu option 7
+            std::string opt7 = (menuSelection == 6) ? "> 7. Double Integration (∫∫ f(x,y) dy dx)" : "  7. Double Integration (∫∫ f(x,y) dy dx)";
+            SDL_Color color7 = (menuSelection == 6) ? green : white;
+            textRenderer.renderText(opt7, leftMargin + 40, y, color7);
+            y += lineHeight;
+            textRenderer.renderText("     Calculate double integrals over rectangular regions", leftMargin + 60, y, gray);
             y += lineHeight + 30;
             
             textRenderer.renderText("Controls:", leftMargin, y, yellow);
             y += lineHeight;
-            textRenderer.renderText("  • Press 1-5 to select", leftMargin + 20, y, white);
+            textRenderer.renderText("  • Press 1-7 to select", leftMargin + 20, y, white);
             y += lineHeight;
             textRenderer.renderText("  • UP/DOWN arrows to navigate", leftMargin + 20, y, white);
             y += lineHeight;
@@ -1327,6 +1514,128 @@ int main(int argc, char* argv[]) {
                 textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
                 y += lineHeight + 10;
                 textRenderer.renderText("Press ESC to return to menu", leftMargin, y, gray);
+            }
+        }
+        // === PARTIAL DERIVATIVES MODE ===
+        else if (currentMode == Mode::PARTIAL_DERIVATIVES) {
+            textRenderer.renderText("Partial Derivatives Mode - ∂f/∂x and ∂f/∂y", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type equation: " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string inputLine = "Input: f(x,y) = " + currentExpression;
+                textRenderer.renderText(inputLine, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && partialResultX && partialResultY) {
+                // Show partial derivative with respect to x
+                textRenderer.renderText("--- Partial Derivative with respect to x ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < partialStepsX.size() && i < 5; i++) {
+                    const auto& step = partialStepsX[i];
+                    std::string stepHeader = "Step " + std::to_string(i + 1) + ": " + step.description;
+                    textRenderer.renderText(stepHeader, leftMargin, y, white);
+                    y += lineHeight;
+                    textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                    y += lineHeight + 5;
+                }
+                
+                std::string resultX = "∂f/∂x = " + partialResultX->toString();
+                textRenderer.renderText(resultX, leftMargin, y, green);
+                y += lineHeight + 15;
+                
+                // Show partial derivative with respect to y
+                textRenderer.renderText("--- Partial Derivative with respect to y ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < partialStepsY.size() && i < 5; i++) {
+                    const auto& step = partialStepsY[i];
+                    std::string stepHeader = "Step " + std::to_string(i + 1) + ": " + step.description;
+                    textRenderer.renderText(stepHeader, leftMargin, y, white);
+                    y += lineHeight;
+                    textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                    y += lineHeight + 5;
+                }
+                
+                std::string resultY = "∂f/∂y = " + partialResultY->toString();
+                textRenderer.renderText(resultY, leftMargin, y, green);
+                y += lineHeight + 20;
+                
+                textRenderer.renderText("ENTER: custom | SPACE: next | X: export | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === DOUBLE INTEGRATION MODE ===
+        else if (currentMode == Mode::DOUBLE_INTEGRATION) {
+            textRenderer.renderText("Double Integration Mode - ∫∫ f(x,y) dy dx", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type equation: " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else if (doubleIntegBoundsInputMode) {
+                textRenderer.renderText("Enter Integration Bounds:", leftMargin, y, yellow);
+                y += lineHeight + 10;
+                
+                std::string xLowerPrompt = (doubleIntegBoundField == 0 ? "> " : "  ") + std::string("x lower bound: ") + xLowerBoundStr + (doubleIntegBoundField == 0 ? "_" : "");
+                textRenderer.renderText(xLowerPrompt, leftMargin + 20, y, doubleIntegBoundField == 0 ? green : white);
+                y += lineHeight;
+                
+                std::string xUpperPrompt = (doubleIntegBoundField == 1 ? "> " : "  ") + std::string("x upper bound: ") + xUpperBoundStr + (doubleIntegBoundField == 1 ? "_" : "");
+                textRenderer.renderText(xUpperPrompt, leftMargin + 20, y, doubleIntegBoundField == 1 ? green : white);
+                y += lineHeight;
+                
+                std::string yLowerPrompt = (doubleIntegBoundField == 2 ? "> " : "  ") + std::string("y lower bound: ") + yLowerBoundStr + (doubleIntegBoundField == 2 ? "_" : "");
+                textRenderer.renderText(yLowerPrompt, leftMargin + 20, y, doubleIntegBoundField == 2 ? green : white);
+                y += lineHeight;
+                
+                std::string yUpperPrompt = (doubleIntegBoundField == 3 ? "> " : "  ") + std::string("y upper bound: ") + yUpperBoundStr + (doubleIntegBoundField == 3 ? "_" : "");
+                textRenderer.renderText(yUpperPrompt, leftMargin + 20, y, doubleIntegBoundField == 3 ? green : white);
+                y += lineHeight + 10;
+                
+                textRenderer.renderText("(TAB to switch, ENTER to compute, ESC to cancel)", leftMargin, y, gray);
+            } else {
+                std::string inputLine = "Input: f(x,y) = " + currentExpression;
+                textRenderer.renderText(inputLine, leftMargin, y, green);
+                y += lineHeight;
+                
+                std::string boundsLine = "Bounds: x ∈ [" + xLowerBoundStr + ", " + xUpperBoundStr + "], y ∈ [" + yLowerBoundStr + ", " + yUpperBoundStr + "]";
+                textRenderer.renderText(boundsLine, leftMargin, y, white);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !doubleIntegSteps.empty()) {
+                textRenderer.renderText("--- Double Integration Steps ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < doubleIntegSteps.size(); i++) {
+                    const auto& step = doubleIntegSteps[i];
+                    std::string stepHeader = "Step " + std::to_string(i + 1) + ": " + step.description;
+                    textRenderer.renderText(stepHeader, leftMargin, y, white);
+                    y += lineHeight;
+                    textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                    y += lineHeight + 5;
+                }
+                
+                y += 10;
+                textRenderer.renderText("--- Result ---", leftMargin, y, yellow);
+                y += lineHeight;
+                std::string finalResult = "∫∫ f(x,y) dy dx = " + std::to_string(doubleIntegralResult);
+                textRenderer.renderText(finalResult, leftMargin, y, green);
+                y += lineHeight + 20;
+                
+                textRenderer.renderText("ENTER: custom | B: bounds | SPACE: next | X: export | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
             }
         }
         

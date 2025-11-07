@@ -26,6 +26,7 @@ public:
     virtual std::unique_ptr<ASTNode> clone() const = 0;
     virtual std::string toString() const = 0;
     virtual double evaluate(double x) const = 0;
+    virtual double evaluate(double x, double y) const = 0;
 };
 
 class NumberNode : public ASTNode {
@@ -50,6 +51,10 @@ public:
     double evaluate(double x) const override {
         return value;
     }
+    
+    double evaluate(double x, double y) const override {
+        return value;
+    }
 };
 
 class VariableNode : public ASTNode {
@@ -69,7 +74,14 @@ public:
     }
     
     double evaluate(double x) const override {
-        return x;
+        return x;  // Default to x for backward compatibility
+    }
+    
+    double evaluate(double x, double y) const override {
+        if (name == "y") {
+            return y;
+        }
+        return x;  // Default to x
     }
 };
 
@@ -120,6 +132,20 @@ public:
         }
         return 0;
     }
+    
+    double evaluate(double x, double y) const override {
+        double l = left->evaluate(x, y);
+        double r = right->evaluate(x, y);
+        
+        switch (op) {
+            case BinaryOp::ADD: return l + r;
+            case BinaryOp::SUB: return l - r;
+            case BinaryOp::MUL: return l * r;
+            case BinaryOp::DIV: return l / r;
+            case BinaryOp::POW: return std::pow(l, r);
+        }
+        return 0;
+    }
 };
 
 class UnaryFuncNode : public ASTNode {
@@ -151,6 +177,20 @@ public:
     
     double evaluate(double x) const override {
         double a = arg->evaluate(x);
+        
+        switch (func) {
+            case UnaryFunc::SIN: return std::sin(a);
+            case UnaryFunc::COS: return std::cos(a);
+            case UnaryFunc::TAN: return std::tan(a);
+            case UnaryFunc::EXP: return std::exp(a);
+            case UnaryFunc::LN: return std::log(a);
+            case UnaryFunc::SQRT: return std::sqrt(a);
+        }
+        return 0;
+    }
+    
+    double evaluate(double x, double y) const override {
+        double a = arg->evaluate(x, y);
         
         switch (func) {
             case UnaryFunc::SIN: return std::sin(a);

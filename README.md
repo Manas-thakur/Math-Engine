@@ -1,13 +1,24 @@
-# Mathematics Engine - Calculus Toolkit (UTF-8)
+# Mathematics Engine - Calculus Toolkit
+
+![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)
+![SDL2](https://img.shields.io/badge/SDL2-2.0+-orange.svg)
 
 A Windows desktop application for **symbolic calculus** with **step-by-step solutions** and **interactive features**.
 
+> 🎓 Comprehensive calculus toolkit supporting single and multivariate calculus operations with symbolic computation and real-time visualization.
+
 ## 🎯 Features
 
-### **Three Calculus Operations**
+### **Seven Calculus Operations**
 1. **Differentiation** (d/dx) - Find derivatives with step-by-step solutions
 2. **Indefinite Integration** (∫ f(x) dx) - Find antiderivatives + C
 3. **Definite Integration** (∫[a,b] f(x) dx) - Calculate area under curve
+4. **Limits** (lim f(x)) - Calculate limits with step-by-step evaluation
+5. **Matrix Multiplication** - Multiply matrices with custom dimensions
+6. **Partial Derivatives** (∂f/∂x, ∂f/∂y) - Compute partial derivatives for multivariate functions
+7. **Double Integration** (∫∫ f(x,y) dy dx) - Calculate double integrals over rectangular regions
 
 ### **Core Capabilities**
 - **Custom Equation Input**: Type your own equations interactively
@@ -53,8 +64,20 @@ pacman -S mingw-w64-x86_64-glew mingw-w64-x86_64-glm
 
 ### 3. Build the Project
 
+#### Option A: Using GCC Directly (Recommended)
+
 ```bash
-cd MathEngine
+cd Mathh
+mkdir build
+cd build
+
+g++ -std=c++17     -I/mingw64/include -I../src     ../src/main.cpp     ../src/engine/parser.cpp     ../src/engine/differentiator.cpp     ../src/engine/integrator.cpp     ../src/engine/simplifier.cpp     ../src/engine/limit_calculator.cpp     ../src/engine/matrix_operations.cpp     ../src/engine/latex_exporter.cpp     ../src/engine/partial_derivative.cpp     ../src/engine/multivariate_integrator.cpp     ../src/ui/renderer.cpp     ../src/ui/text_renderer.cpp     ../src/ui/plotter.cpp     -L/mingw64/lib     -o MathEngineUTF8.exe     -lmingw32 -lSDL2main -lSDL2 -lSDL2_ttf     -lfreetype -lharfbuzz -lgraphite2 -ldwrite -lole32     -lbz2 -lz -lglew32 -lopengl32     -mconsole -O2 -Wall
+```
+
+#### Option B: Using CMake
+
+```bash
+cd Mathh
 mkdir build
 cd build
 
@@ -68,7 +91,7 @@ cmake --build .
 ### 4. Run the Application
 
 ```bash
-./MathEngineUTF8.exe
+./math_engine.exe
 ```
 
 ## 🎮 Controls
@@ -76,7 +99,7 @@ cmake --build .
 ### Main Menu
 | Key | Action |
 |-----|--------|
-| **1, 2, 3** | Select operation (Diff, Indefinite, Definite) |
+| **1-7** | Select operation (1=Diff, 2=Indefinite, 3=Definite, 4=Limits, 5=Matrix, 6=Partial, 7=Double) |
 | **UP/DOWN** | Navigate menu |
 | **ENTER** | Confirm selection |
 | **ESC** | Quit |
@@ -89,19 +112,47 @@ cmake --build .
 | **UP/DOWN** | Scroll steps |
 | **ESC** | Return to menu |
 
-### Definite Integration (Additional)
+### Definite Integration
 | Key | Action |
 |-----|--------|
 | **B** | Change bounds |
 | **TAB** | Switch between bounds |
 
+### Limits
+| Key | Action |
+|-----|--------|
+| **L** or **P** | Open limit configuration |
+| **T** | Quick toggle limit type (finite/+∞/-∞) |
+| **TAB** | Switch fields in config |
+
+### Matrix Multiplication
+| Key | Action |
+|-----|--------|
+| **TAB** | Switch between dimension fields |
+| **ENTER** | Confirm and enter matrix values |
+
+### Partial Derivatives
+| Key | Action |
+|-----|--------|
+| **ENTER** | Type custom equation f(x,y) |
+| **SPACE** | Next example |
+| **X** | Export to LaTeX |
+
+### Double Integration
+| Key | Action |
+|-----|--------|
+| **B** | Set integration bounds (x and y) |
+| **TAB** | Switch between bound fields |
+| **SPACE** | Next example |
+
 ### How to Use
 
-1. **Launch**: See main menu with 3 operations
-2. **Select Mode**: Press 1 (Diff), 2 (Indefinite), or 3 (Definite)
+1. **Launch**: See main menu with 7 operations
+2. **Select Mode**: Press 1-7 or use UP/DOWN arrows + ENTER
 3. **Custom Input**: Press ENTER and type equation
 4. **View Results**: See step-by-step solution
-5. **Return**: Press ESC to go back to menu
+5. **Advanced Features**: Press B for bounds, L/P for limit config, X for LaTeX export
+6. **Return**: Press ESC to go back to menu
 
 ## 📚 Supported Functions
 
@@ -142,6 +193,19 @@ x^2 from [0, 3]     → Area = 9.0
 sin(x) from [0, π]  → Area = 2.0
 ```
 
+**Partial Derivatives:**
+```
+x^2 + y^2           → ∂f/∂x = 2*x, ∂f/∂y = 2*y
+x*y                 → ∂f/∂x = y, ∂f/∂y = x
+sin(x)*cos(y)       → ∂f/∂x = cos(x)*cos(y), ∂f/∂y = -sin(x)*sin(y)
+```
+
+**Double Integration:**
+```
+x*y over [0,1]×[0,1]      → Result = 0.25
+x^2 + y^2 over [0,2]×[0,2] → Numerical result
+```
+
 ## 🏗️ Project Structure
 
 ```
@@ -151,11 +215,16 @@ MathEngine/
 ├── src/
 │   ├── main.cpp            # Application entry point
 │   ├── engine/
-│   │   ├── ast.h           # Abstract Syntax Tree definitions
-│   │   ├── parser.h/.cpp   # Expression parser
-│   │   ├── differentiator.h/.cpp  # Symbolic differentiation
-│   │   ├── integrator.h/.cpp      # Symbolic integration
-│   │   └── simplifier.h/.cpp      # Expression simplification
+│   │   ├── ast.h/.cpp                    # Abstract Syntax Tree definitions
+│   │   ├── parser.h/.cpp                 # Expression parser
+│   │   ├── differentiator.h/.cpp         # Symbolic differentiation
+│   │   ├── integrator.h/.cpp             # Symbolic integration
+│   │   ├── simplifier.h/.cpp             # Expression simplification
+│   │   ├── limit_calculator.h/.cpp       # Limit evaluation
+│   │   ├── matrix_operations.h/.cpp      # Matrix operations
+│   │   ├── latex_exporter.h/.cpp         # LaTeX export
+│   │   ├── partial_derivative.h/.cpp     # Partial derivatives
+│   │   └── multivariate_integrator.h/.cpp # Double integration
 │   └── ui/
 │       ├── renderer.h/.cpp        # SDL2/OpenGL renderer
 │       ├── text_renderer.h/.cpp   # UTF-8 text rendering
@@ -242,19 +311,69 @@ Update graphics drivers to support OpenGL 2.1+
 
 ## 🚀 Future Enhancements
 
-- [ ] Export steps as PDF with LaTeX formatting
-- [ ] ImGui-based UI for expression input
-- [ ] Integration and Taylor series expansion
+- [x] Multiple variable support (partial derivatives, double integration)
+- [x] Limits with L'Hôpital's rule
+- [x] Matrix operations
+- [x] LaTeX export
+- [ ] Triple integration
+- [ ] Gradient and divergence
+- [ ] Taylor series expansion
 - [ ] Visual AST tree representation
+- [ ] ImGui-based UI for expression input
 - [ ] Syntax highlighting in input field
 - [ ] Symbol palette (∫, π, ∑, etc.)
-- [ ] Multiple variable support
 - [ ] Equation solver
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Quick Start for Contributors
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes and test thoroughly
+4. Commit with clear messages: `git commit -m "feat: add new feature"`
+5. Push and create a pull request
+
+### Areas We Need Help
+- 🐛 Bug fixes and testing
+- 📚 Documentation improvements
+- ✨ New mathematical operations
+- 🎨 UI/UX enhancements
+- ⚡ Performance optimizations
 
 ## 📝 License
 
-MIT License - Feel free to use and modify!
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 Author
+**TL;DR**: Feel free to use, modify, and distribute this software. Attribution is appreciated but not required.
 
-Built with SDL2, OpenGL, and C++17 for Windows 10/11 (MSYS2 MinGW64)
+## 👥 Authors & Contributors
+
+**Created by:** Shubh ([@positronx_](https://x.com/positronx_))
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/positronx_?style=social&logo=x)](https://x.com/positronx_)
+
+**Contributors:** See [contributors list](https://github.com/shubhu121/Mathh/contributors)
+
+Built with ❤️ using SDL2, OpenGL, and C++17 for Windows 10/11 (MSYS2 MinGW64)
+
+## ☕ Support My Work
+
+If you find this project helpful, consider supporting its development!
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/positronx_)
+
+Your support helps me:
+- 🚀 Build more open-source tools
+- 📚 Create educational content
+- 🔧 Maintain and improve existing projects
+- ☕ Stay caffeinated while coding!
+
+[**Buy me a coffee ☕**](https://buymeacoffee.com/positronx_)
+
+---
+
+⭐ **Star this repository** if you find it helpful!  
+🐛 **Report issues** to help us improve  
+🔧 **Contribute** to make it even better!

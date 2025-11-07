@@ -20,7 +20,7 @@ Matrix::Matrix(const std::vector<std::vector<double>>& values) {
     
     // Validate all rows have same length
     for (const auto& row : values) {
-        if (row.size() != cols) {
+        if (static_cast<int>(row.size()) != cols) {
             throw std::invalid_argument("All rows must have the same number of columns");
         }
     }

@@ -126,7 +126,7 @@ double LimitCalculator::applyLHopital(const ASTNode* node, double point, LimitTy
 }
 
 double LimitCalculator::evaluateLimit(const ASTNode* node, double point, LimitType type) {
-    double testValue;
+    double testValue = point; // Initialize with default value
     
     switch (type) {
         case LimitType::FINITE:
