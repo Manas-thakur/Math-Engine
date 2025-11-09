@@ -24,6 +24,7 @@
 #include "engine/numerical_methods.h"
 #include "engine/eigenvalues.h"
 #include "engine/statistics.h"
+#include <iomanip>
 #include "ui/renderer.h"
 #include "ui/text_renderer.h"
 #include "ui/plotter.h"
@@ -311,6 +312,20 @@ int main(int argc, char* argv[]) {
     // Statistics mode variables
     std::vector<StatisticsStep> statsSteps;
     std::vector<double> statsData = {2.0, 4.0, 6.0, 8.0, 10.0};
+    
+    // Laplace Transform mode variables
+    std::vector<LaplaceStep> laplaceSteps;
+    
+    // Fourier Series mode variables
+    std::vector<FourierStep> fourierSteps;
+    double fourierPeriod = 6.28;  // 2π
+    int fourierTerms = 5;
+    
+    // Differential Equations mode variables
+    std::vector<DifferentialEquationStep> diffEqSteps;
+    
+    // Vector Calculus mode variables
+    std::vector<VectorCalculusStep> vectorSteps;
     
     // Input mode variables
     bool inputMode = false;
@@ -626,6 +641,111 @@ int main(int argc, char* argv[]) {
             StatisticsCalculator statsCalc;
             statsCalc.analyzeDataSet(statsData);
             statsSteps = statsCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Laplace Transform
+    auto processLaplaceTransform = [&]() {
+        try {
+            LaplaceTransform laplaceCalc;
+            std::string result = laplaceCalc.computeLaplaceTransform(currentExpression);
+            laplaceSteps = laplaceCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Inverse Laplace Transform
+    auto processInverseLaplace = [&]() {
+        try {
+            LaplaceTransform laplaceCalc;
+            std::string result = laplaceCalc.computeInverseLaplace(currentExpression);
+            laplaceSteps = laplaceCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Fourier Series
+    auto processFourierSeries = [&]() {
+        try {
+            FourierSeriesCalculator fourierCalc;
+            std::string result = fourierCalc.computeFourierSeries(ast.get(), fourierPeriod, fourierTerms);
+            fourierSteps = fourierCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Differential Equations
+    auto processDifferentialEquations = [&]() {
+        try {
+            DifferentialEquationSolver deqSolver;
+            std::string result = deqSolver.solveDifferentialEquation(currentExpression);
+            diffEqSteps = deqSolver.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Vector Calculus  
+    auto processVectorCalculus = [&]() {
+        try {
+            VectorCalculusEngine vecCalc;
+            // For gradient of scalar field f(x,y) - compute partial derivatives manually
+            Differentiator diff;
+            PartialDerivative partialDiff;
+            
+            // Compute ∂f/∂x
+            auto df_dx = diff.differentiate(ast.get());
+            
+            // Compute ∂f/∂y (using partial derivative with y variable)
+            auto df_dy = partialDiff.differentiate(ast.get(), DiffVariable::Y);
+            
+            VectorCalculusStep step1;
+            step1.description = "=== Gradient of Scalar Field ===";
+            step1.expression = "f(x,y) = " + currentExpression;
+            vectorSteps.push_back(step1);
+            
+            VectorCalculusStep step2;
+            step2.description = "Gradient formula:";
+            step2.expression = "∇f = <∂f/∂x, ∂f/∂y>";
+            vectorSteps.push_back(step2);
+            
+            VectorCalculusStep step3;
+            step3.description = "Partial derivatives:";
+            step3.expression = "∂f/∂x = " + df_dx->toString() + "\n∂f/∂y = " + df_dy->toString();
+            vectorSteps.push_back(step3);
+            
+            // Evaluate at point (1,1)
+            double grad_x = df_dx->evaluate(1.0);
+            double grad_y = df_dy->evaluate(1.0);
+            
+            VectorCalculusStep step4;
+            step4.description = "Gradient at point (1, 1):";
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(3);
+            oss << "∇f(1,1) = <" << grad_x << ", " << grad_y << ">";
+            step4.expression = oss.str();
+            vectorSteps.push_back(step4);
+            
             parseSuccess = true;
             errorMsg.clear();
         } catch (const std::exception& e) {
@@ -960,19 +1080,31 @@ int main(int argc, char* argv[]) {
                                 processParametricCurve();
                             } else if (menuSelection == 11) {
                                 currentMode = Mode::LAPLACE_TRANSFORM;
+                                currentExpression = "t^2";  // Default: L{t²}
                                 scrollOffset = 0;
+                                processLaplaceTransform();
                             } else if (menuSelection == 12) {
                                 currentMode = Mode::INVERSE_LAPLACE;
+                                currentExpression = "1/(s^2+1)";  // Default: L⁻¹{1/(s²+1)}
                                 scrollOffset = 0;
+                                processInverseLaplace();
                             } else if (menuSelection == 13) {
                                 currentMode = Mode::FOURIER_SERIES;
+                                currentExpression = "x";  // Default: f(x) = x
                                 scrollOffset = 0;
+                                ast = parser.parse(currentExpression);
+                                processFourierSeries();
                             } else if (menuSelection == 14) {
                                 currentMode = Mode::DIFFERENTIAL_EQUATIONS;
+                                currentExpression = "dy/dx=x*y";  // Default: separable ODE
                                 scrollOffset = 0;
+                                processDifferentialEquations();
                             } else if (menuSelection == 15) {
                                 currentMode = Mode::VECTOR_CALCULUS;
+                                currentExpression = "x^2+y^2";  // Default: f(x,y) = x²+y²
                                 scrollOffset = 0;
+                                ast = parser.parse(currentExpression);
+                                processVectorCalculus();
                             } else if (menuSelection == 16) {
                                 currentMode = Mode::COMPLEX_NUMBERS;
                                 scrollOffset = 0;
@@ -1020,6 +1152,21 @@ int main(int argc, char* argv[]) {
                                 processImplicitDifferentiation();
                             } else if (currentMode == Mode::TAYLOR_SERIES) {
                                 processTaylorSeries();
+                            } else if (currentMode == Mode::LAPLACE_TRANSFORM) {
+                                processLaplaceTransform();
+                            } else if (currentMode == Mode::INVERSE_LAPLACE) {
+                                processInverseLaplace();
+                            } else if (currentMode == Mode::FOURIER_SERIES) {
+                                ast = parser.parse(currentExpression);
+                                processFourierSeries();
+                            } else if (currentMode == Mode::DIFFERENTIAL_EQUATIONS) {
+                                processDifferentialEquations();
+                            } else if (currentMode == Mode::VECTOR_CALCULUS) {
+                                ast = parser.parse(currentExpression);
+                                processVectorCalculus();
+                            } else if (currentMode == Mode::NUMERICAL_METHODS) {
+                                ast = parser.parse(currentExpression);
+                                processNumericalMethods();
                             }
                             // Note: Parametric curve uses parametricXInputMode/parametricYInputMode instead
                         }
@@ -2735,17 +2882,203 @@ int main(int argc, char* argv[]) {
                 textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
             }
         }
-        // === PLACEHOLDER for remaining features ===
-        else if (currentMode == Mode::LAPLACE_TRANSFORM || currentMode == Mode::INVERSE_LAPLACE ||
-                 currentMode == Mode::FOURIER_SERIES || currentMode == Mode::DIFFERENTIAL_EQUATIONS ||
-                 currentMode == Mode::VECTOR_CALCULUS) {
+        // === LAPLACE TRANSFORM MODE ===
+        else if (currentMode == Mode::LAPLACE_TRANSFORM) {
             y = 20 - scrollOffset;
-            std::string title = "Feature Coming Soon";
-            textRenderer.renderText(title, leftMargin, y, cyan);
-            y += lineHeight + 20;
-            textRenderer.renderText("This feature is still being integrated.", leftMargin, y, white);
+            textRenderer.renderText("Laplace Transform Mode - L{f(t)}", leftMargin, y, cyan);
             y += lineHeight + 10;
-            textRenderer.renderText("Press ESC to return to menu", leftMargin, y, gray);
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type function f(t): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string func = "f(t) = " + currentExpression;
+                textRenderer.renderText(func, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !laplaceSteps.empty() && !inputMode) {
+                textRenderer.renderText("--- Laplace Transform ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < laplaceSteps.size(); i++) {
+                    const auto& step = laplaceSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom input | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === INVERSE LAPLACE MODE ===
+        else if (currentMode == Mode::INVERSE_LAPLACE) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Inverse Laplace Transform Mode - L^-1{F(s)}", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type function F(s): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string func = "F(s) = " + currentExpression;
+                textRenderer.renderText(func, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !laplaceSteps.empty() && !inputMode) {
+                textRenderer.renderText("--- Inverse Laplace Transform ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < laplaceSteps.size(); i++) {
+                    const auto& step = laplaceSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom input | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === FOURIER SERIES MODE ===
+        else if (currentMode == Mode::FOURIER_SERIES) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Fourier Series Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type function f(x): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string func = "f(x) = " + currentExpression;
+                textRenderer.renderText(func, leftMargin, y, green);
+                y += lineHeight;
+                std::string period = "Period: " + std::to_string(fourierPeriod) + ", Terms: " + std::to_string(fourierTerms);
+                textRenderer.renderText(period, leftMargin, y, white);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !fourierSteps.empty() && !inputMode) {
+                textRenderer.renderText("--- Fourier Series Expansion ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < fourierSteps.size(); i++) {
+                    const auto& step = fourierSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom input | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === DIFFERENTIAL EQUATIONS MODE ===
+        else if (currentMode == Mode::DIFFERENTIAL_EQUATIONS) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Differential Equations Mode (1st Order)", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type equation: " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(e.g., dy/dx=x*y, Press ENTER to compute)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string eq = "Equation: " + currentExpression;
+                textRenderer.renderText(eq, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !diffEqSteps.empty() && !inputMode) {
+                textRenderer.renderText("--- Solution Steps ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < diffEqSteps.size(); i++) {
+                    const auto& step = diffEqSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom input | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === VECTOR CALCULUS MODE ===
+        else if (currentMode == Mode::VECTOR_CALCULUS) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Vector Calculus Mode - Gradient", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type function f(x,y): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute gradient, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string func = "f(x,y) = " + currentExpression;
+                textRenderer.renderText(func, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !vectorSteps.empty() && !inputMode) {
+                textRenderer.renderText("--- Vector Calculus Operations ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < vectorSteps.size(); i++) {
+                    const auto& step = vectorSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom input | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
         }
         
         // Display export message if active
