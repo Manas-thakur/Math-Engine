@@ -11,6 +11,19 @@
 #include "engine/latex_exporter.h"
 #include "engine/partial_derivative.h"
 #include "engine/multivariate_integrator.h"
+#include "engine/implicit_differentiation.h"
+#include "engine/linear_transformation.h"
+#include "engine/taylor_series.h"
+#include "engine/parametric_curve.h"
+#include "engine/laplace_transform.h"
+#include "engine/fourier_series.h"
+#include "engine/differential_equations.h"
+#include "engine/vector_calculus.h"
+#include "engine/complex_numbers.h"
+#include "engine/sequences_series.h"
+#include "engine/numerical_methods.h"
+#include "engine/eigenvalues.h"
+#include "engine/statistics.h"
 #include "ui/renderer.h"
 #include "ui/text_renderer.h"
 #include "ui/plotter.h"
@@ -23,7 +36,21 @@ enum class Mode {
     LIMITS,
     MATRIX_MULTIPLICATION,
     PARTIAL_DERIVATIVES,
-    DOUBLE_INTEGRATION
+    DOUBLE_INTEGRATION,
+    IMPLICIT_DIFFERENTIATION,
+    LINEAR_TRANSFORMATION,
+    TAYLOR_SERIES,
+    PARAMETRIC_CURVE,
+    LAPLACE_TRANSFORM,
+    INVERSE_LAPLACE,
+    FOURIER_SERIES,
+    DIFFERENTIAL_EQUATIONS,
+    VECTOR_CALCULUS,
+    COMPLEX_NUMBERS,
+    SEQUENCES_SERIES,
+    NUMERICAL_METHODS,
+    EIGENVALUES,
+    STATISTICS
 };
 
 // Default example expressions for differentiation
@@ -84,6 +111,43 @@ const char* defaultDoubleIntegralExpressions[] = {
 };
 const int numDefaultDoubleIntegralExpressions = 5;
 
+// Default example expressions for implicit differentiation (F(x,y) = 0)
+const char* defaultImplicitExpressions[] = {
+    "x^2 + y^2",           // Circle: x² + y² = constant
+    "x*y",                 // Hyperbola: xy = constant
+    "x^2 - y^2",           // Hyperbola: x² - y² = constant
+    "x^3 + y^3",           // Folium-like curve
+    "sin(x) + cos(y)"      // Transcendental implicit equation
+};
+const int numDefaultImplicitExpressions = 5;
+
+// Default example expressions for Taylor series
+const char* defaultTaylorExpressions[] = {
+    "sin(x)",    // Taylor series of sin(x)
+    "cos(x)",    // Taylor series of cos(x)
+    "exp(x)",    // Taylor series of e^x
+    "ln(x)",     // Taylor series of ln(x) around x=1
+    "x^3"        // Simple polynomial
+};
+const int numDefaultTaylorExpressions = 5;
+
+// Default example parametric curves (x(t), y(t))
+const char* defaultParametricX[] = {
+    "t",         // Line
+    "cos(t)",    // Circle
+    "t",         // Parabola
+    "2*cos(t)",  // Ellipse
+    "t*cos(t)"   // Spiral
+};
+const char* defaultParametricY[] = {
+    "t",         // Line
+    "sin(t)",    // Circle
+    "t^2",       // Parabola
+    "sin(t)",    // Ellipse
+    "t*sin(t)"   // Spiral
+};
+const int numDefaultParametricCurves = 5;
+
 int main(int argc, char* argv[]) {
     // Initialize renderer
     Renderer renderer;
@@ -110,6 +174,7 @@ int main(int argc, char* argv[]) {
     // Application state
     Mode currentMode = Mode::MENU;
     int menuSelection = 0;
+    int menuScrollOffset = 0;  // For scrolling the menu
     
     // Shared variables
     Parser parser;
@@ -178,6 +243,74 @@ int main(int argc, char* argv[]) {
     bool doubleIntegBoundsInputMode = false;
     int doubleIntegBoundField = 0; // 0=x_lower, 1=x_upper, 2=y_lower, 3=y_upper
     double doubleIntegralResult = 0.0;
+    
+    // Implicit differentiation mode variables
+    int currentImplicitExpressionIndex = 0;
+    std::vector<ImplicitDifferentiationStep> implicitSteps;
+    std::string implicitResult;
+    
+    // Linear transformation mode variables
+    Matrix2D transformMatrix(1, 0, 0, 1);  // Identity matrix default
+    Vector2D inputVector(1, 0);            // Default vector
+    std::vector<TransformationStep> transformSteps;
+    bool matrixInputModeTransform = false;
+    bool vectorInputModeTransform = false;
+    std::string transformMatrixInput[4] = {"1", "0", "0", "1"};  // a, b, c, d
+    std::string transformVectorInput[2] = {"1", "0"};           // x, y
+    int transformInputField = 0;  // 0-3 for matrix, 4-5 for vector
+    
+    // Taylor series mode variables
+    int currentTaylorExpressionIndex = 0;
+    std::vector<TaylorSeriesStep> taylorSteps;
+    std::string taylorResult;
+    double taylorCenter = 0.0;  // Expansion center (a)
+    int taylorOrder = 4;        // Order of approximation
+    std::string taylorCenterStr = "0";
+    std::string taylorOrderStr = "4";
+    bool taylorConfigMode = false;
+    int taylorConfigField = 0;  // 0=center, 1=order
+    
+    // Parametric curve mode variables
+    int currentParametricCurveIndex = 0;
+    std::vector<ParametricCurveStep> parametricSteps;
+    std::string currentXExpression = "";
+    std::string currentYExpression = "";
+    std::unique_ptr<ASTNode> astX;
+    std::unique_ptr<ASTNode> astY;
+    double tStart = 0.0;
+    double tEnd = 6.28;  // 2π
+    double tEval = 1.57; // π/2
+    std::string tStartStr = "0";
+    std::string tEndStr = "6.28";
+    std::string tEvalStr = "1.57";
+    bool parametricConfigMode = false;
+    int parametricConfigField = 0;  // 0=tStart, 1=tEnd, 2=tEval
+    bool parametricXInputMode = false;
+    bool parametricYInputMode = false;
+    
+    // Complex Numbers mode variables
+    std::vector<ComplexStep> complexSteps;
+    double complexA1 = 3.0, complexB1 = 4.0;  // 3+4i
+    
+    // Sequences & Series mode variables
+    std::vector<SequenceStep> sequenceSteps;
+    double seqA = 2.0, seqD = 3.0;  // Arithmetic: a=2, d=3
+    int seqN = 10;  // Number of terms
+    
+    // Numerical Methods mode variables
+    std::vector<NumericalStep> numericalSteps;
+    double numX0 = 1.0;  // Initial guess for Newton-Raphson
+    int numIterations = 10;
+    double numTolerance = 0.0001;
+    
+    // Eigenvalues mode variables
+    std::vector<EigenStep> eigenSteps;
+    double eigenA = 2.0, eigenB = 1.0;
+    double eigenC = 1.0, eigenD = 2.0;  // Matrix [[2,1],[1,2]]
+    
+    // Statistics mode variables
+    std::vector<StatisticsStep> statsSteps;
+    std::vector<double> statsData = {2.0, 4.0, 6.0, 8.0, 10.0};
     
     // Input mode variables
     bool inputMode = false;
@@ -347,6 +480,160 @@ int main(int argc, char* argv[]) {
         }
     };
     
+    // Lambda to process implicit differentiation
+    auto processImplicitDifferentiation = [&]() {
+        try {
+            ast = parser.parse(currentExpression);
+            
+            ImplicitDifferentiator implicitDiff;
+            implicitResult = implicitDiff.computeImplicitDerivative(ast.get());
+            implicitSteps = implicitDiff.getSteps();
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process linear transformation
+    auto processLinearTransformation = [&]() {
+        try {
+            // Parse matrix inputs
+            transformMatrix.a = std::stod(transformMatrixInput[0]);
+            transformMatrix.b = std::stod(transformMatrixInput[1]);
+            transformMatrix.c = std::stod(transformMatrixInput[2]);
+            transformMatrix.d = std::stod(transformMatrixInput[3]);
+            
+            // Parse vector inputs
+            inputVector.x = std::stod(transformVectorInput[0]);
+            inputVector.y = std::stod(transformVectorInput[1]);
+            
+            LinearTransformation linearTransform;
+            linearTransform.analyzeTransformation(transformMatrix, inputVector);
+            transformSteps = linearTransform.getSteps();
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Taylor series
+    auto processTaylorSeries = [&]() {
+        try {
+            ast = parser.parse(currentExpression);
+            
+            taylorCenter = std::stod(taylorCenterStr);
+            taylorOrder = std::stoi(taylorOrderStr);
+            
+            TaylorSeriesCalculator taylorCalc;
+            taylorResult = taylorCalc.computeTaylorSeries(ast.get(), taylorCenter, taylorOrder);
+            taylorSteps = taylorCalc.getSteps();
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process parametric curve
+    auto processParametricCurve = [&]() {
+        try {
+            astX = parser.parse(currentXExpression);
+            astY = parser.parse(currentYExpression);
+            
+            tStart = std::stod(tStartStr);
+            tEnd = std::stod(tEndStr);
+            tEval = std::stod(tEvalStr);
+            
+            ParametricCurveAnalyzer paramAnalyzer;
+            paramAnalyzer.analyzeParametricCurve(astX.get(), astY.get(), tStart, tEnd, tEval);
+            parametricSteps = paramAnalyzer.getSteps();
+            
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Complex Numbers
+    auto processComplexNumbers = [&]() {
+        try {
+            ComplexNumberCalculator complexCalc;
+            complexCalc.analyzeComplexNumber(complexA1, complexB1);
+            complexSteps = complexCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Sequences & Series
+    auto processSequences = [&]() {
+        try {
+            SequencesSeriesCalculator seqCalc;
+            seqCalc.analyzeArithmetic(seqA, seqD, seqN);
+            sequenceSteps = seqCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Numerical Methods
+    auto processNumericalMethods = [&]() {
+        try {
+            NumericalMethods numMethods;
+            numMethods.newtonRaphson(ast.get(), numX0, numIterations, numTolerance);
+            numericalSteps = numMethods.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Eigenvalues
+    auto processEigenvalues = [&]() {
+        try {
+            EigenvalueCalculator eigenCalc;
+            eigenCalc.analyze2x2Matrix(eigenA, eigenB, eigenC, eigenD);
+            eigenSteps = eigenCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
+    // Lambda to process Statistics
+    auto processStatistics = [&]() {
+        try {
+            StatisticsCalculator statsCalc;
+            statsCalc.analyzeDataSet(statsData);
+            statsSteps = statsCalc.getSteps();
+            parseSuccess = true;
+            errorMsg.clear();
+        } catch (const std::exception& e) {
+            parseSuccess = false;
+            errorMsg = std::string("Error: ") + e.what();
+        }
+    };
+    
     // Lambda to handle LaTeX export
     auto exportToLaTeX = [&]() {
         std::string filename;
@@ -438,6 +725,17 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
+            else if (event.type == SDL_MOUSEWHEEL) {
+                if (currentMode == Mode::MENU) {
+                    // Scroll menu with mouse wheel
+                    menuScrollOffset -= event.wheel.y * 30;
+                    if (menuScrollOffset < 0) menuScrollOffset = 0;
+                } else {
+                    // Scroll steps with mouse wheel in other modes
+                    scrollOffset -= event.wheel.y * 30;
+                    if (scrollOffset < 0) scrollOffset = 0;
+                }
+            }
             else if (event.type == SDL_TEXTINPUT) {
                 if (inputMode) {
                     userInput += event.text.text;
@@ -479,6 +777,35 @@ int main(int argc, char* argv[]) {
                         yLowerBoundStr += event.text.text;
                     } else if (doubleIntegBoundField == 3) {
                         yUpperBoundStr += event.text.text;
+                    }
+                }
+                else if (matrixInputModeTransform) {
+                    if (transformInputField >= 0 && transformInputField <= 3) {
+                        transformMatrixInput[transformInputField] += event.text.text;
+                    }
+                }
+                else if (vectorInputModeTransform) {
+                    if (transformInputField >= 0 && transformInputField <= 1) {
+                        transformVectorInput[transformInputField] += event.text.text;
+                    }
+                }
+                else if (taylorConfigMode) {
+                    if (taylorConfigField == 0) {
+                        taylorCenterStr += event.text.text;
+                    } else if (taylorConfigField == 1) {
+                        taylorOrderStr += event.text.text;
+                    }
+                }
+                else if (parametricXInputMode || parametricYInputMode) {
+                    userInput += event.text.text;
+                }
+                else if (parametricConfigMode) {
+                    if (parametricConfigField == 0) {
+                        tStartStr += event.text.text;
+                    } else if (parametricConfigField == 1) {
+                        tEndStr += event.text.text;
+                    } else if (parametricConfigField == 2) {
+                        tEvalStr += event.text.text;
                     }
                 }
             }
@@ -545,11 +872,26 @@ int main(int argc, char* argv[]) {
                             SDL_StartTextInput();
                             std::cout << "Switched to DOUBLE INTEGRATION mode\n";
                             break;
+                        case SDLK_8:
+                            currentMode = Mode::IMPLICIT_DIFFERENTIATION;
+                            currentExpression = defaultImplicitExpressions[0];
+                            scrollOffset = 0;
+                            processImplicitDifferentiation();
+                            std::cout << "Switched to IMPLICIT DIFFERENTIATION mode\n";
+                            break;
+                        case SDLK_9:
+                            currentMode = Mode::LINEAR_TRANSFORMATION;
+                            scrollOffset = 0;
+                            matrixInputModeTransform = true;
+                            transformInputField = 0;
+                            SDL_StartTextInput();
+                            std::cout << "Switched to LINEAR TRANSFORMATION mode\n";
+                            break;
                         case SDLK_UP:
                             menuSelection = std::max(0, menuSelection - 1);
                             break;
                         case SDLK_DOWN:
-                            menuSelection = std::min(6, menuSelection + 1);
+                            menuSelection = std::min(20, menuSelection + 1);
                             break;
                         case SDLK_RETURN:
                             if (menuSelection == 0) {
@@ -594,6 +936,65 @@ int main(int argc, char* argv[]) {
                                 doubleIntegBoundsInputMode = true;
                                 doubleIntegBoundField = 0;
                                 SDL_StartTextInput();
+                            } else if (menuSelection == 7) {
+                                currentMode = Mode::IMPLICIT_DIFFERENTIATION;
+                                currentExpression = defaultImplicitExpressions[0];
+                                scrollOffset = 0;
+                                processImplicitDifferentiation();
+                            } else if (menuSelection == 8) {
+                                currentMode = Mode::LINEAR_TRANSFORMATION;
+                                scrollOffset = 0;
+                                matrixInputModeTransform = true;
+                                transformInputField = 0;
+                                SDL_StartTextInput();
+                            } else if (menuSelection == 9) {
+                                currentMode = Mode::TAYLOR_SERIES;
+                                currentExpression = defaultTaylorExpressions[0];
+                                scrollOffset = 0;
+                                processTaylorSeries();
+                            } else if (menuSelection == 10) {
+                                currentMode = Mode::PARAMETRIC_CURVE;
+                                currentXExpression = defaultParametricX[0];
+                                currentYExpression = defaultParametricY[0];
+                                scrollOffset = 0;
+                                processParametricCurve();
+                            } else if (menuSelection == 11) {
+                                currentMode = Mode::LAPLACE_TRANSFORM;
+                                scrollOffset = 0;
+                            } else if (menuSelection == 12) {
+                                currentMode = Mode::INVERSE_LAPLACE;
+                                scrollOffset = 0;
+                            } else if (menuSelection == 13) {
+                                currentMode = Mode::FOURIER_SERIES;
+                                scrollOffset = 0;
+                            } else if (menuSelection == 14) {
+                                currentMode = Mode::DIFFERENTIAL_EQUATIONS;
+                                scrollOffset = 0;
+                            } else if (menuSelection == 15) {
+                                currentMode = Mode::VECTOR_CALCULUS;
+                                scrollOffset = 0;
+                            } else if (menuSelection == 16) {
+                                currentMode = Mode::COMPLEX_NUMBERS;
+                                scrollOffset = 0;
+                                processComplexNumbers();
+                            } else if (menuSelection == 17) {
+                                currentMode = Mode::SEQUENCES_SERIES;
+                                scrollOffset = 0;
+                                processSequences();
+                            } else if (menuSelection == 18) {
+                                currentMode = Mode::NUMERICAL_METHODS;
+                                currentExpression = "x^2-2";  // Default: find sqrt(2)
+                                scrollOffset = 0;
+                                ast = parser.parse(currentExpression);
+                                processNumericalMethods();
+                            } else if (menuSelection == 19) {
+                                currentMode = Mode::EIGENVALUES;
+                                scrollOffset = 0;
+                                processEigenvalues();
+                            } else if (menuSelection == 20) {
+                                currentMode = Mode::STATISTICS;
+                                scrollOffset = 0;
+                                processStatistics();
                             }
                             break;
                     }
@@ -615,7 +1016,12 @@ int main(int argc, char* argv[]) {
                                 processPartialDerivatives();
                             } else if (currentMode == Mode::DOUBLE_INTEGRATION) {
                                 processDoubleIntegration();
+                            } else if (currentMode == Mode::IMPLICIT_DIFFERENTIATION) {
+                                processImplicitDifferentiation();
+                            } else if (currentMode == Mode::TAYLOR_SERIES) {
+                                processTaylorSeries();
                             }
+                            // Note: Parametric curve uses parametricXInputMode/parametricYInputMode instead
                         }
                         inputMode = false;
                         SDL_StopTextInput();
@@ -862,6 +1268,135 @@ int main(int argc, char* argv[]) {
                         SDL_StopTextInput();
                     }
                 }
+                // Handle linear transformation matrix input
+                else if (matrixInputModeTransform && currentMode == Mode::LINEAR_TRANSFORMATION) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        // Move to vector input after matrix is entered
+                        matrixInputModeTransform = false;
+                        vectorInputModeTransform = true;
+                        transformInputField = 0;
+                    }
+                    else if (event.key.keysym.sym == SDLK_TAB) {
+                        transformInputField = (transformInputField + 1) % 4;
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (transformInputField >= 0 && transformInputField <= 3 && !transformMatrixInput[transformInputField].empty()) {
+                            transformMatrixInput[transformInputField] = transformMatrixInput[transformInputField].substr(0, transformMatrixInput[transformInputField].length() - 1);
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        matrixInputModeTransform = false;
+                        SDL_StopTextInput();
+                        currentMode = Mode::MENU;
+                    }
+                }
+                // Handle linear transformation vector input
+                else if (vectorInputModeTransform && currentMode == Mode::LINEAR_TRANSFORMATION) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        vectorInputModeTransform = false;
+                        SDL_StopTextInput();
+                        processLinearTransformation();
+                    }
+                    else if (event.key.keysym.sym == SDLK_TAB) {
+                        transformInputField = (transformInputField + 1) % 2;
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (transformInputField >= 0 && transformInputField <= 1 && !transformVectorInput[transformInputField].empty()) {
+                            transformVectorInput[transformInputField] = transformVectorInput[transformInputField].substr(0, transformVectorInput[transformInputField].length() - 1);
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        vectorInputModeTransform = false;
+                        SDL_StopTextInput();
+                        currentMode = Mode::MENU;
+                    }
+                }
+                // Handle Taylor series configuration
+                else if (taylorConfigMode && currentMode == Mode::TAYLOR_SERIES) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        taylorConfigMode = false;
+                        SDL_StopTextInput();
+                        processTaylorSeries();
+                    }
+                    else if (event.key.keysym.sym == SDLK_TAB) {
+                        taylorConfigField = (taylorConfigField + 1) % 2;
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (taylorConfigField == 0 && !taylorCenterStr.empty()) {
+                            taylorCenterStr = taylorCenterStr.substr(0, taylorCenterStr.length() - 1);
+                        } else if (taylorConfigField == 1 && !taylorOrderStr.empty()) {
+                            taylorOrderStr = taylorOrderStr.substr(0, taylorOrderStr.length() - 1);
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        taylorConfigMode = false;
+                        SDL_StopTextInput();
+                    }
+                }
+                // Handle parametric curve X input
+                else if (parametricXInputMode && currentMode == Mode::PARAMETRIC_CURVE) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        if (!userInput.empty()) {
+                            currentXExpression = userInput;
+                            userInput = "";
+                            parametricXInputMode = false;
+                            parametricYInputMode = true;
+                            // Stay in text input mode for y(t)
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE && !userInput.empty()) {
+                        userInput = userInput.substr(0, userInput.length() - 1);
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        parametricXInputMode = false;
+                        userInput = "";
+                        SDL_StopTextInput();
+                    }
+                }
+                // Handle parametric curve Y input
+                else if (parametricYInputMode && currentMode == Mode::PARAMETRIC_CURVE) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        if (!userInput.empty()) {
+                            currentYExpression = userInput;
+                            userInput = "";
+                            parametricYInputMode = false;
+                            SDL_StopTextInput();
+                            processParametricCurve();
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE && !userInput.empty()) {
+                        userInput = userInput.substr(0, userInput.length() - 1);
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        parametricYInputMode = false;
+                        userInput = "";
+                        SDL_StopTextInput();
+                    }
+                }
+                // Handle parametric curve configuration
+                else if (parametricConfigMode && currentMode == Mode::PARAMETRIC_CURVE) {
+                    if (event.key.keysym.sym == SDLK_RETURN) {
+                        parametricConfigMode = false;
+                        SDL_StopTextInput();
+                        processParametricCurve();
+                    }
+                    else if (event.key.keysym.sym == SDLK_TAB) {
+                        parametricConfigField = (parametricConfigField + 1) % 3;
+                    }
+                    else if (event.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (parametricConfigField == 0 && !tStartStr.empty()) {
+                            tStartStr = tStartStr.substr(0, tStartStr.length() - 1);
+                        } else if (parametricConfigField == 1 && !tEndStr.empty()) {
+                            tEndStr = tEndStr.substr(0, tEndStr.length() - 1);
+                        } else if (parametricConfigField == 2 && !tEvalStr.empty()) {
+                            tEvalStr = tEvalStr.substr(0, tEvalStr.length() - 1);
+                        }
+                    }
+                    else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                        parametricConfigMode = false;
+                        SDL_StopTextInput();
+                    }
+                }
                 // Normal calculus mode controls
                 else {
                     switch (event.key.keysym.sym) {
@@ -872,9 +1407,16 @@ int main(int argc, char* argv[]) {
                             std::cout << "Returned to MENU\n";
                             break;
                         case SDLK_RETURN:
-                            inputMode = true;
-                            userInput = "";
-                            SDL_StartTextInput();
+                            if (currentMode == Mode::PARAMETRIC_CURVE) {
+                                // For parametric curves, start with X input
+                                parametricXInputMode = true;
+                                userInput = "";
+                                SDL_StartTextInput();
+                            } else {
+                                inputMode = true;
+                                userInput = "";
+                                SDL_StartTextInput();
+                            }
                             break;
                         case SDLK_b:
                             // B key for bounds
@@ -928,6 +1470,36 @@ int main(int argc, char* argv[]) {
                                 exportToLaTeX();
                             }
                             break;
+                        case SDLK_m:
+                            // M key to re-enter matrix (linear transformation only)
+                            if (currentMode == Mode::LINEAR_TRANSFORMATION) {
+                                matrixInputModeTransform = true;
+                                vectorInputModeTransform = false;
+                                transformInputField = 0;
+                                SDL_StartTextInput();
+                            }
+                            break;
+                        case SDLK_v:
+                            // V key to re-enter vector (linear transformation only)
+                            if (currentMode == Mode::LINEAR_TRANSFORMATION) {
+                                vectorInputModeTransform = true;
+                                matrixInputModeTransform = false;
+                                transformInputField = 0;
+                                SDL_StartTextInput();
+                            }
+                            break;
+                        case SDLK_c:
+                            // C key to configure (Taylor series and parametric curve)
+                            if (currentMode == Mode::TAYLOR_SERIES) {
+                                taylorConfigMode = true;
+                                taylorConfigField = 0;
+                                SDL_StartTextInput();
+                            } else if (currentMode == Mode::PARAMETRIC_CURVE) {
+                                parametricConfigMode = true;
+                                parametricConfigField = 0;
+                                SDL_StartTextInput();
+                            }
+                            break;
                         case SDLK_SPACE:
                             if (currentMode == Mode::DIFFERENTIATION) {
                                 currentDiffExpressionIndex = (currentDiffExpressionIndex + 1) % numDefaultDiffExpressions;
@@ -960,6 +1532,22 @@ int main(int argc, char* argv[]) {
                                 currentExpression = defaultDoubleIntegralExpressions[currentDoubleIntegralExpressionIndex];
                                 scrollOffset = 0;
                                 processDoubleIntegration();
+                            } else if (currentMode == Mode::IMPLICIT_DIFFERENTIATION) {
+                                currentImplicitExpressionIndex = (currentImplicitExpressionIndex + 1) % numDefaultImplicitExpressions;
+                                currentExpression = defaultImplicitExpressions[currentImplicitExpressionIndex];
+                                scrollOffset = 0;
+                                processImplicitDifferentiation();
+                            } else if (currentMode == Mode::TAYLOR_SERIES) {
+                                currentTaylorExpressionIndex = (currentTaylorExpressionIndex + 1) % numDefaultTaylorExpressions;
+                                currentExpression = defaultTaylorExpressions[currentTaylorExpressionIndex];
+                                scrollOffset = 0;
+                                processTaylorSeries();
+                            } else if (currentMode == Mode::PARAMETRIC_CURVE) {
+                                currentParametricCurveIndex = (currentParametricCurveIndex + 1) % numDefaultParametricCurves;
+                                currentXExpression = defaultParametricX[currentParametricCurveIndex];
+                                currentYExpression = defaultParametricY[currentParametricCurveIndex];
+                                scrollOffset = 0;
+                                processParametricCurve();
                             }
                             break;
                         case SDLK_UP:
@@ -976,12 +1564,13 @@ int main(int argc, char* argv[]) {
         // Render
         renderer.clear(0.05f, 0.05f, 0.1f);
         
-        int y = 20 - scrollOffset;
         int leftMargin = 20;
-        int lineHeight = 35;
+        int lineHeight = 28;
+        int y;
         
         // === MENU MODE ===
         if (currentMode == Mode::MENU) {
+            y = 20 - menuScrollOffset;  // Use menu scroll offset
             textRenderer.renderText("+===============================================+", leftMargin, y, cyan);
             y += lineHeight;
             textRenderer.renderText("|     MATHEMATICS ENGINE - Calculus Toolkit    |", leftMargin, y, cyan);
@@ -990,7 +1579,7 @@ int main(int argc, char* argv[]) {
             y += lineHeight + 20;
             
             textRenderer.renderText("Select Operation:", leftMargin, y, yellow);
-            y += lineHeight + 10;
+            y += lineHeight + 5;
             
             // Menu option 1
             std::string opt1 = (menuSelection == 0) ? "> 1. Differentiation (d/dx)" : "  1. Differentiation (d/dx)";
@@ -998,7 +1587,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt1, leftMargin + 40, y, color1);
             y += lineHeight;
             textRenderer.renderText("     Find derivatives with step-by-step solutions", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 2
             std::string opt2 = (menuSelection == 1) ? "> 2. Indefinite Integration (∫ f(x) dx)" : "  2. Indefinite Integration (∫ f(x) dx)";
@@ -1006,7 +1595,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt2, leftMargin + 40, y, color2);
             y += lineHeight;
             textRenderer.renderText("     Find antiderivatives + C", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 3
             std::string opt3 = (menuSelection == 2) ? "> 3. Definite Integration (∫[a,b] f(x) dx)" : "  3. Definite Integration (∫[a,b] f(x) dx)";
@@ -1014,7 +1603,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt3, leftMargin + 40, y, color3);
             y += lineHeight;
             textRenderer.renderText("     Calculate area under curve with bounds", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 4
             std::string opt4 = (menuSelection == 3) ? "> 4. Limits (lim f(x))" : "  4. Limits (lim f(x))";
@@ -1022,7 +1611,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt4, leftMargin + 40, y, color4);
             y += lineHeight;
             textRenderer.renderText("     Calculate limits with step-by-step evaluation", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 5
             std::string opt5 = (menuSelection == 4) ? "> 5. Matrix Multiplication" : "  5. Matrix Multiplication";
@@ -1030,7 +1619,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt5, leftMargin + 40, y, color5);
             y += lineHeight;
             textRenderer.renderText("     Multiply matrices with custom dimensions", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 6
             std::string opt6 = (menuSelection == 5) ? "> 6. Partial Derivatives (∂f/∂x, ∂f/∂y)" : "  6. Partial Derivatives (∂f/∂x, ∂f/∂y)";
@@ -1038,7 +1627,7 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt6, leftMargin + 40, y, color6);
             y += lineHeight;
             textRenderer.renderText("     Compute partial derivatives for functions of x and y", leftMargin + 60, y, gray);
-            y += lineHeight + 10;
+            y += lineHeight + 3;
             
             // Menu option 7
             std::string opt7 = (menuSelection == 6) ? "> 7. Double Integration (∫∫ f(x,y) dy dx)" : "  7. Double Integration (∫∫ f(x,y) dy dx)";
@@ -1046,20 +1635,107 @@ int main(int argc, char* argv[]) {
             textRenderer.renderText(opt7, leftMargin + 40, y, color7);
             y += lineHeight;
             textRenderer.renderText("     Calculate double integrals over rectangular regions", leftMargin + 60, y, gray);
-            y += lineHeight + 30;
+            y += lineHeight + 3;
+            
+            // Menu option 8
+            std::string opt8 = (menuSelection == 7) ? "> 8. Implicit Differentiation (dy/dx)" : "  8. Implicit Differentiation (dy/dx)";
+            SDL_Color color8 = (menuSelection == 7) ? green : white;
+            textRenderer.renderText(opt8, leftMargin + 40, y, color8);
+            y += lineHeight;
+            textRenderer.renderText("     Find dy/dx for implicit equations F(x,y) = 0", leftMargin + 60, y, gray);
+            y += lineHeight + 3;
+            
+            // Menu option 9
+            std::string opt9 = (menuSelection == 8) ? "> 9. Linear Transformation" : "  9. Linear Transformation";
+            SDL_Color color9 = (menuSelection == 8) ? green : white;
+            textRenderer.renderText(opt9, leftMargin + 40, y, color9);
+            y += lineHeight;
+            textRenderer.renderText("     Analyze 2D linear transformations and matrix properties", leftMargin + 60, y, gray);
+            y += lineHeight + 3;
+            
+            // Menu option 10
+            std::string opt10 = (menuSelection == 9) ? "> 10. Taylor Series Expansion" : "  10. Taylor Series Expansion";
+            SDL_Color color10 = (menuSelection == 9) ? green : white;
+            textRenderer.renderText(opt10, leftMargin + 40, y, color10);
+            y += lineHeight;
+            textRenderer.renderText("     Compute Taylor/Maclaurin series with step-by-step expansion", leftMargin + 60, y, gray);
+            y += lineHeight + 3;
+            
+            // Menu option 11
+            std::string opt11 = (menuSelection == 10) ? "> 11. Parametric Curve Analysis" : "  11. Parametric Curve Analysis";
+            SDL_Color color11 = (menuSelection == 10) ? green : white;
+            textRenderer.renderText(opt11, leftMargin + 40, y, color11);
+            y += lineHeight + 2;
+            
+            // Menu option 12
+            std::string opt12 = (menuSelection == 11) ? "> 12. Laplace Transform" : "  12. Laplace Transform";
+            SDL_Color color12 = (menuSelection == 11) ? green : white;
+            textRenderer.renderText(opt12, leftMargin + 40, y, color12);
+            y += lineHeight + 2;
+            
+            // Menu option 13
+            std::string opt13 = (menuSelection == 12) ? "> 13. Inverse Laplace Transform" : "  13. Inverse Laplace Transform";
+            SDL_Color color13 = (menuSelection == 12) ? green : white;
+            textRenderer.renderText(opt13, leftMargin + 40, y, color13);
+            y += lineHeight + 2;
+            
+            // Menu option 14
+            std::string opt14 = (menuSelection == 13) ? "> 14. Fourier Series" : "  14. Fourier Series";
+            SDL_Color color14 = (menuSelection == 13) ? green : white;
+            textRenderer.renderText(opt14, leftMargin + 40, y, color14);
+            y += lineHeight + 2;
+            
+            // Menu option 15
+            std::string opt15 = (menuSelection == 14) ? "> 15. Differential Equations (1st Order)" : "  15. Differential Equations (1st Order)";
+            SDL_Color color15 = (menuSelection == 14) ? green : white;
+            textRenderer.renderText(opt15, leftMargin + 40, y, color15);
+            y += lineHeight + 2;
+            
+            // Menu option 16
+            std::string opt16 = (menuSelection == 15) ? "> 16. Vector Calculus (∇, div, curl)" : "  16. Vector Calculus (∇, div, curl)";
+            SDL_Color color16 = (menuSelection == 15) ? green : white;
+            textRenderer.renderText(opt16, leftMargin + 40, y, color16);
+            y += lineHeight + 2;
+            
+            // Menu option 17
+            std::string opt17 = (menuSelection == 16) ? "> 17. Complex Numbers" : "  17. Complex Numbers";
+            SDL_Color color17 = (menuSelection == 16) ? green : white;
+            textRenderer.renderText(opt17, leftMargin + 40, y, color17);
+            y += lineHeight + 2;
+            
+            // Menu option 18
+            std::string opt18 = (menuSelection == 17) ? "> 18. Sequences & Series" : "  18. Sequences & Series";
+            SDL_Color color18 = (menuSelection == 17) ? green : white;
+            textRenderer.renderText(opt18, leftMargin + 40, y, color18);
+            y += lineHeight + 2;
+            
+            // Menu option 19
+            std::string opt19 = (menuSelection == 18) ? "> 19. Numerical Methods" : "  19. Numerical Methods";
+            SDL_Color color19 = (menuSelection == 18) ? green : white;
+            textRenderer.renderText(opt19, leftMargin + 40, y, color19);
+            y += lineHeight + 2;
+            
+            // Menu option 20
+            std::string opt20 = (menuSelection == 19) ? "> 20. Eigenvalues & Eigenvectors" : "  20. Eigenvalues & Eigenvectors";
+            SDL_Color color20 = (menuSelection == 19) ? green : white;
+            textRenderer.renderText(opt20, leftMargin + 40, y, color20);
+            y += lineHeight + 2;
+            
+            // Menu option 21
+            std::string opt21 = (menuSelection == 20) ? "> 21. Statistics & Probability" : "  21. Statistics & Probability";
+            SDL_Color color21 = (menuSelection == 20) ? green : white;
+            textRenderer.renderText(opt21, leftMargin + 40, y, color21);
+            y += lineHeight + 10;
             
             textRenderer.renderText("Controls:", leftMargin, y, yellow);
             y += lineHeight;
-            textRenderer.renderText("  • Press 1-7 to select", leftMargin + 20, y, white);
+            textRenderer.renderText("  • UP/DOWN or Mouse Wheel: Navigate", leftMargin + 20, y, white);
             y += lineHeight;
-            textRenderer.renderText("  • UP/DOWN arrows to navigate", leftMargin + 20, y, white);
-            y += lineHeight;
-            textRenderer.renderText("  • ENTER to confirm", leftMargin + 20, y, white);
-            y += lineHeight;
-            textRenderer.renderText("  • ESC to quit", leftMargin + 20, y, white);
+            textRenderer.renderText("  • ENTER: Select  •  ESC: Quit", leftMargin + 20, y, white);
         }
         // === DIFFERENTIATION MODE ===
         else if (currentMode == Mode::DIFFERENTIATION) {
+            y = 20 - scrollOffset;  // Use regular scroll offset for non-menu modes
             textRenderer.renderText("Differentiation Mode - d/dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1134,6 +1810,7 @@ int main(int argc, char* argv[]) {
         }
         // === INDEFINITE INTEGRATION MODE ===
         else if (currentMode == Mode::INDEFINITE_INTEGRATION) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Indefinite Integration Mode - ∫ f(x) dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1217,6 +1894,7 @@ int main(int argc, char* argv[]) {
         }
         // === DEFINITE INTEGRATION MODE ===
         else if (currentMode == Mode::DEFINITE_INTEGRATION) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Definite Integration Mode - ∫[a,b] f(x) dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1316,6 +1994,7 @@ int main(int argc, char* argv[]) {
         }
         // === LIMITS MODE ===
         else if (currentMode == Mode::LIMITS) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Limits Mode - lim f(x)", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1426,6 +2105,7 @@ int main(int argc, char* argv[]) {
         }
         // === MATRIX MULTIPLICATION MODE ===
         else if (currentMode == Mode::MATRIX_MULTIPLICATION) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Matrix Multiplication Mode", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1518,6 +2198,7 @@ int main(int argc, char* argv[]) {
         }
         // === PARTIAL DERIVATIVES MODE ===
         else if (currentMode == Mode::PARTIAL_DERIVATIVES) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Partial Derivatives Mode - ∂f/∂x and ∂f/∂y", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1574,6 +2255,7 @@ int main(int argc, char* argv[]) {
         }
         // === DOUBLE INTEGRATION MODE ===
         else if (currentMode == Mode::DOUBLE_INTEGRATION) {
+            y = 20 - scrollOffset;
             textRenderer.renderText("Double Integration Mode - ∫∫ f(x,y) dy dx", leftMargin, y, cyan);
             y += lineHeight + 10;
             
@@ -1637,6 +2319,433 @@ int main(int argc, char* argv[]) {
             } else if (!errorMsg.empty()) {
                 textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
             }
+        }
+        // === IMPLICIT DIFFERENTIATION MODE ===
+        else if (currentMode == Mode::IMPLICIT_DIFFERENTIATION) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Implicit Differentiation Mode - dy/dx", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type equation F(x,y): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else {
+                std::string inputLine = "Input: F(x,y) = " + currentExpression + " = 0";
+                textRenderer.renderText(inputLine, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !implicitSteps.empty()) {
+                textRenderer.renderText("--- Implicit Differentiation Steps ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < implicitSteps.size(); i++) {
+                    const auto& step = implicitSteps[i];
+                    if (!step.description.empty()) {
+                        std::string stepHeader = "Step " + std::to_string(i + 1) + ": " + step.description;
+                        textRenderer.renderText(stepHeader, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 5;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("--- Final Result ---", leftMargin, y, yellow);
+                y += lineHeight;
+                textRenderer.renderText(implicitResult, leftMargin, y, green);
+                y += lineHeight + 20;
+                
+                textRenderer.renderText("ENTER: custom | SPACE: next example | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === LINEAR TRANSFORMATION MODE ===
+        else if (currentMode == Mode::LINEAR_TRANSFORMATION) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Linear Transformation Mode - 2D Analysis", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (matrixInputModeTransform) {
+                textRenderer.renderText("Enter Transformation Matrix [[a, b], [c, d]]:", leftMargin, y, yellow);
+                y += lineHeight + 10;
+                
+                std::string aPrompt = (transformInputField == 0 ? "> " : "  ") + std::string("a (top-left): ") + transformMatrixInput[0] + (transformInputField == 0 ? "_" : "");
+                textRenderer.renderText(aPrompt, leftMargin + 20, y, transformInputField == 0 ? green : white);
+                y += lineHeight;
+                
+                std::string bPrompt = (transformInputField == 1 ? "> " : "  ") + std::string("b (top-right): ") + transformMatrixInput[1] + (transformInputField == 1 ? "_" : "");
+                textRenderer.renderText(bPrompt, leftMargin + 20, y, transformInputField == 1 ? green : white);
+                y += lineHeight;
+                
+                std::string cPrompt = (transformInputField == 2 ? "> " : "  ") + std::string("c (bottom-left): ") + transformMatrixInput[2] + (transformInputField == 2 ? "_" : "");
+                textRenderer.renderText(cPrompt, leftMargin + 20, y, transformInputField == 2 ? green : white);
+                y += lineHeight;
+                
+                std::string dPrompt = (transformInputField == 3 ? "> " : "  ") + std::string("d (bottom-right): ") + transformMatrixInput[3] + (transformInputField == 3 ? "_" : "");
+                textRenderer.renderText(dPrompt, leftMargin + 20, y, transformInputField == 3 ? green : white);
+                y += lineHeight + 10;
+                
+                textRenderer.renderText("(TAB to switch, ENTER to continue to vector input, ESC to cancel)", leftMargin, y, gray);
+            } else if (vectorInputModeTransform) {
+                textRenderer.renderText("Enter Input Vector [x, y]:", leftMargin, y, yellow);
+                y += lineHeight + 10;
+                
+                std::string xPrompt = (transformInputField == 0 ? "> " : "  ") + std::string("x: ") + transformVectorInput[0] + (transformInputField == 0 ? "_" : "");
+                textRenderer.renderText(xPrompt, leftMargin + 20, y, transformInputField == 0 ? green : white);
+                y += lineHeight;
+                
+                std::string yPrompt = (transformInputField == 1 ? "> " : "  ") + std::string("y: ") + transformVectorInput[1] + (transformInputField == 1 ? "_" : "");
+                textRenderer.renderText(yPrompt, leftMargin + 20, y, transformInputField == 1 ? green : white);
+                y += lineHeight + 10;
+                
+                textRenderer.renderText("(TAB to switch, ENTER to compute, ESC to cancel)", leftMargin, y, gray);
+            } else {
+                std::string matrixLine = "Transformation Matrix: " + transformMatrix.toString();
+                textRenderer.renderText(matrixLine, leftMargin, y, green);
+                y += lineHeight;
+                
+                std::string vectorLine = "Input Vector: " + inputVector.toString();
+                textRenderer.renderText(vectorLine, leftMargin, y, green);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !transformSteps.empty()) {
+                textRenderer.renderText("--- Linear Transformation Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < transformSteps.size(); i++) {
+                    const auto& step = transformSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 5;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("Press M for new matrix, V for new vector, ESC for menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === TAYLOR SERIES MODE ===
+        else if (currentMode == Mode::TAYLOR_SERIES) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Taylor Series Expansion Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (inputMode) {
+                std::string inputPrompt = "Type function f(x): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else if (taylorConfigMode) {
+                textRenderer.renderText("Configure Taylor Series:", leftMargin, y, yellow);
+                y += lineHeight + 10;
+                
+                std::string centerPrompt = (taylorConfigField == 0 ? "> " : "  ") + std::string("Expansion center (a): ") + taylorCenterStr + (taylorConfigField == 0 ? "_" : "");
+                textRenderer.renderText(centerPrompt, leftMargin + 20, y, taylorConfigField == 0 ? green : white);
+                y += lineHeight;
+                
+                std::string orderPrompt = (taylorConfigField == 1 ? "> " : "  ") + std::string("Order (n): ") + taylorOrderStr + (taylorConfigField == 1 ? "_" : "");
+                textRenderer.renderText(orderPrompt, leftMargin + 20, y, taylorConfigField == 1 ? green : white);
+                y += lineHeight + 10;
+                
+                textRenderer.renderText("(TAB to switch, ENTER to compute, ESC to cancel)", leftMargin, y, gray);
+            } else {
+                std::string inputLine = "Input: f(x) = " + currentExpression;
+                textRenderer.renderText(inputLine, leftMargin, y, green);
+                y += lineHeight;
+                
+                std::string configLine = "Center: a = " + taylorCenterStr + ", Order: n = " + taylorOrderStr;
+                textRenderer.renderText(configLine, leftMargin, y, white);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !taylorSteps.empty()) {
+                textRenderer.renderText("--- Taylor Series Steps ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < taylorSteps.size(); i++) {
+                    const auto& step = taylorSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom | C: configure | SPACE: next | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === PARAMETRIC CURVE MODE ===
+        else if (currentMode == Mode::PARAMETRIC_CURVE) {
+            y = 20 - scrollOffset;  // Initialize y for this mode
+            textRenderer.renderText("Parametric Curve Analysis Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            if (parametricXInputMode) {
+                std::string inputPrompt = "Type x(t): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER for y(t), ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else if (parametricYInputMode) {
+                std::string xLine = "x(t) = " + currentXExpression;
+                textRenderer.renderText(xLine, leftMargin, y, green);
+                y += lineHeight + 10;
+                
+                std::string inputPrompt = "Type y(t): " + userInput + "_";
+                textRenderer.renderText(inputPrompt, leftMargin, y, yellow);
+                textRenderer.renderText("(Press ENTER to compute, ESC to cancel)", leftMargin, y + lineHeight, gray);
+                y += lineHeight * 2 + 15;
+            } else if (parametricConfigMode) {
+                textRenderer.renderText("Configure Parameter Range:", leftMargin, y, yellow);
+                y += lineHeight + 10;
+                
+                std::string tStartPrompt = (parametricConfigField == 0 ? "> " : "  ") + std::string("t start: ") + tStartStr + (parametricConfigField == 0 ? "_" : "");
+                textRenderer.renderText(tStartPrompt, leftMargin + 20, y, parametricConfigField == 0 ? green : white);
+                y += lineHeight;
+                
+                std::string tEndPrompt = (parametricConfigField == 1 ? "> " : "  ") + std::string("t end: ") + tEndStr + (parametricConfigField == 1 ? "_" : "");
+                textRenderer.renderText(tEndPrompt, leftMargin + 20, y, parametricConfigField == 1 ? green : white);
+                y += lineHeight;
+                
+                std::string tEvalPrompt = (parametricConfigField == 2 ? "> " : "  ") + std::string("t eval: ") + tEvalStr + (parametricConfigField == 2 ? "_" : "");
+                textRenderer.renderText(tEvalPrompt, leftMargin + 20, y, parametricConfigField == 2 ? green : white);
+                y += lineHeight + 10;
+                
+                textRenderer.renderText("(TAB to switch, ENTER to compute, ESC to cancel)", leftMargin, y, gray);
+            } else {
+                std::string xLine = "x(t) = " + currentXExpression;
+                textRenderer.renderText(xLine, leftMargin, y, green);
+                y += lineHeight;
+                
+                std::string yLine = "y(t) = " + currentYExpression;
+                textRenderer.renderText(yLine, leftMargin, y, green);
+                y += lineHeight;
+                
+                std::string paramLine = "t ∈ [" + tStartStr + ", " + tEndStr + "], eval at t = " + tEvalStr;
+                textRenderer.renderText(paramLine, leftMargin, y, white);
+                y += lineHeight + 15;
+            }
+            
+            if (parseSuccess && !parametricSteps.empty()) {
+                textRenderer.renderText("--- Parametric Curve Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < parametricSteps.size(); i++) {
+                    const auto& step = parametricSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ENTER: custom | C: configure | SPACE: next | ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === COMPLEX NUMBERS MODE ===
+        else if (currentMode == Mode::COMPLEX_NUMBERS) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Complex Numbers Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            std::string z1 = "z1 = " + std::to_string(complexA1) + " + " + std::to_string(complexB1) + "i";
+            textRenderer.renderText(z1, leftMargin, y, green);
+            y += lineHeight + 15;
+            
+            if (parseSuccess && !complexSteps.empty()) {
+                textRenderer.renderText("--- Complex Number Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < complexSteps.size(); i++) {
+                    const auto& step = complexSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === SEQUENCES & SERIES MODE ===
+        else if (currentMode == Mode::SEQUENCES_SERIES) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Sequences & Series Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            std::string params = "Arithmetic: a=" + std::to_string(seqA) + ", d=" + std::to_string(seqD) + ", n=" + std::to_string(seqN);
+            textRenderer.renderText(params, leftMargin, y, green);
+            y += lineHeight + 15;
+            
+            if (parseSuccess && !sequenceSteps.empty()) {
+                textRenderer.renderText("--- Sequence Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < sequenceSteps.size(); i++) {
+                    const auto& step = sequenceSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === NUMERICAL METHODS MODE ===
+        else if (currentMode == Mode::NUMERICAL_METHODS) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Numerical Methods Mode - Newton-Raphson", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            std::string func = "f(x) = " + currentExpression;
+            textRenderer.renderText(func, leftMargin, y, green);
+            y += lineHeight;
+            std::string initial = "Initial guess: x0 = " + std::to_string(numX0);
+            textRenderer.renderText(initial, leftMargin, y, white);
+            y += lineHeight + 15;
+            
+            if (parseSuccess && !numericalSteps.empty()) {
+                textRenderer.renderText("--- Newton-Raphson Method ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < numericalSteps.size(); i++) {
+                    const auto& step = numericalSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === EIGENVALUES MODE ===
+        else if (currentMode == Mode::EIGENVALUES) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Eigenvalues & Eigenvectors Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            std::string matrixLine = "Matrix A = [[" + std::to_string(eigenA) + ", " + std::to_string(eigenB) + 
+                                     "], [" + std::to_string(eigenC) + ", " + std::to_string(eigenD) + "]]";
+            textRenderer.renderText(matrixLine, leftMargin, y, green);
+            y += lineHeight + 15;
+            
+            if (parseSuccess && !eigenSteps.empty()) {
+                textRenderer.renderText("--- Eigenvalue Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < eigenSteps.size(); i++) {
+                    const auto& step = eigenSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === STATISTICS MODE ===
+        else if (currentMode == Mode::STATISTICS) {
+            y = 20 - scrollOffset;
+            textRenderer.renderText("Statistics & Probability Mode", leftMargin, y, cyan);
+            y += lineHeight + 10;
+            
+            std::string dataStr = "Data: {";
+            for (size_t i = 0; i < statsData.size(); i++) {
+                if (i > 0) dataStr += ", ";
+                dataStr += std::to_string((int)statsData[i]);
+            }
+            dataStr += "}";
+            textRenderer.renderText(dataStr, leftMargin, y, green);
+            y += lineHeight + 15;
+            
+            if (parseSuccess && !statsSteps.empty()) {
+                textRenderer.renderText("--- Statistical Analysis ---", leftMargin, y, yellow);
+                y += lineHeight;
+                
+                for (size_t i = 0; i < statsSteps.size(); i++) {
+                    const auto& step = statsSteps[i];
+                    if (!step.description.empty()) {
+                        textRenderer.renderText(step.description, leftMargin, y, white);
+                        y += lineHeight;
+                    }
+                    if (!step.expression.empty()) {
+                        textRenderer.renderText("  " + step.expression, leftMargin + 20, y, white);
+                        y += lineHeight + 3;
+                    }
+                }
+                
+                y += 10;
+                textRenderer.renderText("ESC: menu", 20, 690, gray);
+            } else if (!errorMsg.empty()) {
+                textRenderer.renderText(errorMsg, leftMargin, y, {255, 100, 100, 255});
+            }
+        }
+        // === PLACEHOLDER for remaining features ===
+        else if (currentMode == Mode::LAPLACE_TRANSFORM || currentMode == Mode::INVERSE_LAPLACE ||
+                 currentMode == Mode::FOURIER_SERIES || currentMode == Mode::DIFFERENTIAL_EQUATIONS ||
+                 currentMode == Mode::VECTOR_CALCULUS) {
+            y = 20 - scrollOffset;
+            std::string title = "Feature Coming Soon";
+            textRenderer.renderText(title, leftMargin, y, cyan);
+            y += lineHeight + 20;
+            textRenderer.renderText("This feature is still being integrated.", leftMargin, y, white);
+            y += lineHeight + 10;
+            textRenderer.renderText("Press ESC to return to menu", leftMargin, y, gray);
         }
         
         // Display export message if active

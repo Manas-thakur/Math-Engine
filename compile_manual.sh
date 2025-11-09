@@ -18,6 +18,21 @@ g++ -std=c++17 \
     ../src/engine/limit_calculator.cpp \
     ../src/engine/matrix_operations.cpp \
     ../src/engine/latex_exporter.cpp \
+    ../src/engine/partial_derivative.cpp \
+    ../src/engine/multivariate_integrator.cpp \
+    ../src/engine/implicit_differentiation.cpp \
+    ../src/engine/linear_transformation.cpp \
+    ../src/engine/taylor_series.cpp \
+    ../src/engine/parametric_curve.cpp \
+    ../src/engine/laplace_transform.cpp \
+    ../src/engine/fourier_series.cpp \
+    ../src/engine/differential_equations.cpp \
+    ../src/engine/vector_calculus.cpp \
+    ../src/engine/complex_numbers.cpp \
+    ../src/engine/sequences_series.cpp \
+    ../src/engine/numerical_methods.cpp \
+    ../src/engine/eigenvalues.cpp \
+    ../src/engine/statistics.cpp \
     ../src/ui/renderer.cpp \
     ../src/ui/text_renderer.cpp \
     ../src/ui/plotter.cpp \
